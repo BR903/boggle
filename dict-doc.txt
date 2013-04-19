@@ -55,8 +55,8 @@ struct treearc {
 };
 
 Since the heaps are not contiguous, pointers are used to refer to
-other arcs instead of indexes. The arcs belonging to a single node are
-held together as a linked list via the sibling pointer. The child
+other arcs instead of indexes. The arcs leading out from a single node
+are held together as a linked list via the sibling pointer. The child
 pointer indicates the arc's target node, pointing to the head of the
 node's linked list of arcs. The head arc of each node has a unique
 nonzero value for the nodeid; the other arcs in each node have a
@@ -77,13 +77,13 @@ frequency table.
 
 The second representation is created by the serializetree() function.
 In this representation, arcs are translated into their 32-bit forms,
-sibling arcs are brought together. To avoid putting unnecessary strain
-on the memory, a temporary file is used in the process. The function
-begins by iterating through all the arcs. Arcs belonging to a single
-node are collected, sorted by letter, and written out to the file
-consecutively. In place of the child pointer value, the nodeid of the
-target node is used. Preceding each set of arcs in the file are the
-values for the nodeid and wordend fields of the head arc.
+and sibling arcs are brought together. To avoid putting unnecessary
+strain on the memory, a temporary file is used in the process. The
+function begins by iterating through all the arcs. Arcs belonging to a
+single node are collected, sorted by letter, and written out to the
+file consecutively. In place of the child pointer value, the nodeid of
+the target node is used. Preceding each set of arcs in the file are
+the values for the nodeid and wordend fields of the head arc.
 
 Once this is done, all the heaps are deallocated. At this point, the
 program knows the exact number of nodes and arcs in the current form
@@ -111,7 +111,7 @@ wordend field holds the end-of-word flag. The parcs field points to
 another array of arcs; this and the remaining fields are used in the
 next phase.
 
-As the contents of the temporary file is read back into memory, the
+As the contents of the temporary file are read back into memory, the
 nodes are placed in order according to their nodeid values. Thus, the
 nodeid values used in the arcs become indexes into the array of
 treenode structures. The array of arcs is treated as a single heap,

@@ -40,7 +40,7 @@ int filtergrid(int count, char *pieces[])
 		continue;
 	    }
 	    buf[n] = '\0';
-	    if (n >= minlen && findwordingrid(buf))
+	    if (n >= minlen && findwordingrid(buf, NULL))
 		puts(buf);
 	} else
 	    skipnext = TRUE;

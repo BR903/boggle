@@ -19,13 +19,13 @@ extern short (*neighbors)[9];
  */
 extern void shakecube(void);
 
-/* Locate a word within the grid, returning a gridsized array that
- * contains a number for each cell that the word covers, the number
- * being a one-based index for the letter in the word that is
- * there. The array belongs to this module and is reused with each
- * call to the function. If the word cannot be found in the grid, NULL
- * is returned.
+/* Locate a word within the current grid. The return value is the
+ * length of the word, or zero if the word cannot be found. If the
+ * word is found, and positions is not NULL, then positions is set to
+ * point to an array of char values. Each value in the array gives the
+ * position of that letter on the grid for the given word. (The buffer
+ * must be freed by the caller.)
  */
-extern char *findwordingrid(char const *word);
+extern int findwordingrid(char const *word, char **positions);
 
 #endif

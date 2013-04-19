@@ -1,6 +1,7 @@
 /* (C) 1999 Brian Raiter (under the terms of the GPL) */
 
 #include	<stdlib.h>
+#include	<string.h>
 #include	"boggle.h"
 #include	"genutil.h"
 #include	"words.h"

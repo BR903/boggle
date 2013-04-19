@@ -35,7 +35,7 @@ static const int maxwordscores = sizeof wordscores / sizeof *wordscores;
 
 /* The player's statistics, initially all zero.
  */
-static scores scoring = { 0 };
+static scores scoring;
 
 /* Whether or not to show the unfound words at the end of each game.
  */
@@ -64,16 +64,16 @@ void scoregame(void)
     scoring.nscore1 = 0;
     for (i = 0 ; found[i] ; ++i) {
 	n = strlen(found[i]);
-	if (n > maxwordscores)
-	    n = maxwordscores;
+	if (n >= maxwordscores)
+	    n = maxwordscores - 1;
 	scoring.nscore1 += wordscores[n];
     }
     scoring.ncount1 = i;
     scoring.dscore1 = scoring.nscore1;
     for (i = 0 ; findable[i] ; ++i) {
 	n = strlen(findable[i]);
-	if (n > maxwordscores)
-	    n = maxwordscores;
+	if (n >= maxwordscores)
+	    n = maxwordscores - 1;
 	scoring.dscore1 += wordscores[n];
     }
     scoring.dcount1 = scoring.ncount1 + i;

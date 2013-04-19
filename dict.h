@@ -19,7 +19,7 @@ typedef unsigned long		arc;
 /* Macros to access and change a dictionary arc.
  */
 #define	getarcletter(arc)		((int)((arc) >> 23) & 0xFF)
-#define	getarcend(arc)			((int)((arc) & 0x80000000L))
+#define	getarcend(arc)			(((arc) & 0x80000000L) != 0)
 #define	getarcnext(arc)			((long)((arc) & 0x007FFFFFL))
 
 #define	setarcletter(arc, ltr)		((arc) |= ((ltr) & 0xFFUL) << 23)

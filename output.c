@@ -2,6 +2,7 @@
 
 #define	_POSIX_SOURCE
 #include	<stdlib.h>
+#include	<string.h>
 #include	<ctype.h>
 #include	<stdarg.h>
 #include	<signal.h>
@@ -40,6 +41,10 @@ static int highlightattr = A_STANDOUT;
 /* Whether or not to show the unfound words at the end of each game.
  */
 static int ego = 0;
+
+/* Whether or not to use ACS characters to draw the board.
+ */
+static int noacs = 0;
 
 /* Exit function for the module.
  */
@@ -80,6 +85,7 @@ int outputinit(char *opts[])
     int y, x;
 
     ego = opts['o'] != NULL;
+    noacs = opts['l'] != NULL;
 
     xwords = 0;
     ywords = height * 2 + 1;
@@ -181,13 +187,19 @@ static int listwords(char const *heading, char const **list, int offset)
     int lenmax, minextend, n;
     int finished = TRUE;
 
-    minextend = strlen(heading) + 2;
-    addline(heading);
     getyx(stdscr, ymin, x);
+    ++ymin;
     getmaxyx(stdscr, ymax, xmax);
     ycol = ymax - ywords - 1;
 
-    for (word = list + offset * ycol ; *word ; x += lenmax) {
+    minextend = strlen(heading) + 2;
+    if (offset) {
+	minextend += 4;
+	addstr("... ");
+    }
+    addline(heading);
+
+    for (word = list + offset * ycol ; *word ; x += lenmax + 1) {
 	lenmax = 0;
 	for (y = 0 ; y < ycol ; ++y) {
 	    if (!word[y])
@@ -196,10 +208,9 @@ static int listwords(char const *heading, char const **list, int offset)
 	    if (n > lenmax)
 		lenmax = n;
 	}
-	++lenmax;
-	if (x + lenmax >= xmax) {
+	if (x + lenmax > xmax) {
 	    finished = FALSE;
-	    mvaddstr(ymax - 1, xmax - 3, "...");
+	    mvaddstr(ymin - 1, xmax - 3, "...");
 	    break;
 	}
 
@@ -221,7 +232,7 @@ static int listwords(char const *heading, char const **list, int offset)
  * that is positive, the corresponding letter is displayed with
  * highlighting.
  */
-static void drawgridletters(char const *highlighting)
+static void drawgridletters(int highlighted)
 {
     int	ypos, xpos, x, n;
     int ch, attr;
@@ -234,7 +245,7 @@ static void drawgridletters(char const *highlighting)
 	    xpos = 2;
 	    ypos += 2;
 	}
-	if (highlighting && highlighting[n])
+	if (n == highlighted)
 	    attr = highlightattr;
 	else
 	    attr = A_NORMAL;
@@ -253,49 +264,75 @@ void drawgrid(void)
     int y, x;
     int	left = 0, right = width * 4, top = 0, bottom = height * 2;
 
-    mvaddch(top, left, ACS_ULCORNER);
-    addch(ACS_HLINE);
-    addch(ACS_HLINE);
-    addch(ACS_HLINE);
-    mvaddch(top, right, ACS_URCORNER);
-    mvaddch(bottom, left, ACS_LLCORNER);
-    addch(ACS_HLINE);
-    addch(ACS_HLINE);
-    addch(ACS_HLINE);
-    mvaddch(bottom, right, ACS_LRCORNER);
-    for (x = left + 4 ; x < right ; x += 4) {
-	mvaddch(top, x, ACS_TTEE);
+    if (noacs) {
+	mvaddch(top, left, '+');
+	for (x = left + 1 ; x < right ; ++x)
+	    addch('-');
+	addch('+');
+	for (y = top + 1 ; y < bottom ; ++y) {
+	    mvaddch(y, left, '|');
+	    mvaddch(y, right, '|');
+	}
+	mvaddch(bottom, left, '+');
+	for (x = left + 1 ; x < right ; ++x)
+	    addch('-');
+	addch('+');
+	for (y = top + 1 ; y < bottom ; ++y) {
+	    if ((y ^ top) & 1) {
+		for (x = left + 4 ; x < right ; x += 4)
+		    mvaddch(y, x, '|');
+		mvaddch(y, x, '|');
+	    } else {
+		mvaddstr(y, left + 1, "---");
+		for (x = left + 4 ; x < right ; x += 4)
+		    addstr(" ---");
+	    }
+	}
+    } else {
+	mvaddch(top, left, ACS_ULCORNER);
 	addch(ACS_HLINE);
 	addch(ACS_HLINE);
 	addch(ACS_HLINE);
-	mvaddch(top + 1, x, ACS_VLINE);
-	mvaddch(bottom, x, ACS_BTEE);
+	mvaddch(top, right, ACS_URCORNER);
+	mvaddch(bottom, left, ACS_LLCORNER);
 	addch(ACS_HLINE);
 	addch(ACS_HLINE);
 	addch(ACS_HLINE);
-    }
-    mvaddch(top + 1, left, ACS_VLINE);
-    mvaddch(top + 1, right, ACS_VLINE);
-    for (y = top + 2 ; y < bottom ; y += 2) {
-	mvaddch(y, left, ACS_LTEE);
-	addch(ACS_HLINE);
-	addch(ACS_HLINE);
-	addch(ACS_HLINE);
-	mvaddch(y + 1, left, ACS_VLINE);
-	mvaddch(y, right, ACS_RTEE);
-	mvaddch(y + 1, right, ACS_VLINE);
-    }
-    for (x = left + 4 ; x < right ; x += 4) {
+	mvaddch(bottom, right, ACS_LRCORNER);
+	for (x = left + 4 ; x < right ; x += 4) {
+	    mvaddch(top, x, ACS_TTEE);
+	    addch(ACS_HLINE);
+	    addch(ACS_HLINE);
+	    addch(ACS_HLINE);
+	    mvaddch(top + 1, x, ACS_VLINE);
+	    mvaddch(bottom, x, ACS_BTEE);
+	    addch(ACS_HLINE);
+	    addch(ACS_HLINE);
+	    addch(ACS_HLINE);
+	}
+	mvaddch(top + 1, left, ACS_VLINE);
+	mvaddch(top + 1, right, ACS_VLINE);
 	for (y = top + 2 ; y < bottom ; y += 2) {
-	    mvaddch(y, x, ACS_PLUS);
+	    mvaddch(y, left, ACS_LTEE);
 	    addch(ACS_HLINE);
 	    addch(ACS_HLINE);
 	    addch(ACS_HLINE);
-	    mvaddch(y + 1, x, ACS_VLINE);
+	    mvaddch(y + 1, left, ACS_VLINE);
+	    mvaddch(y, right, ACS_RTEE);
+	    mvaddch(y + 1, right, ACS_VLINE);
+	}
+	for (x = left + 4 ; x < right ; x += 4) {
+	    for (y = top + 2 ; y < bottom ; y += 2) {
+		mvaddch(y, x, ACS_PLUS);
+		addch(ACS_HLINE);
+		addch(ACS_HLINE);
+		addch(ACS_HLINE);
+		mvaddch(y + 1, x, ACS_VLINE);
+	    }
 	}
     }
 
-    drawgridletters(NULL);
+    drawgridletters(-1);
 
 }
 
@@ -340,11 +377,11 @@ void displayinputhelp(int show)
  * round. Returns zero if the end of screen was reached before the end
  * of the wordlist.
  */
-int doendgameoutput(int y, int x, char *highlit, int offset)
+int doendgameoutput(int y, int x, int offset, int highlighted)
 {
     int f = TRUE;
 
-    drawgridletters(highlit);
+    drawgridletters(highlighted);
     movetowords(TRUE);
     listwords("Your words:", getfound(), 0);
     if (!ego)
@@ -353,7 +390,7 @@ int doendgameoutput(int y, int x, char *highlit, int offset)
     if (!offset && f)
 	addline("^D: quit  &: new game  ?: find word");
     else
-	addline("^D: quit  &: new game  ?: find word  =-: scroll");
+	addline("^D: quit  &: new game  ?: find word  -+: scroll");
     clrtoeol();
     return f;
 }

@@ -20,7 +20,7 @@ void addtocolumn(int size);
  * containing the word, or NULL if the user types ^D instead. If
  * enablehelp is TRUE, then help is displayed when ? is pressed.
  */
-extern char const *inputword(int enablehelp);
+extern char *inputword(int enablehelp);
 
 /* Gets keystrokes at the end of each game, returning TRUE for &,
  * FALSE for ^D, shifting the wordlist display on - and +/=, dealing

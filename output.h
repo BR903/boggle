@@ -33,11 +33,12 @@ extern void displaygamestart(void);
 extern void displayinputhelp(int show);
 
 /* Draw the board, the help, and the two wordlists at the end of a
- * round. highlit, if not NULL, indicates a set of letters in the
- * board to highlight. Offset indicates the number of columns to skip
- * over in the list of findable words. The return value is zero if the
- * end of screen was reached before the end of the findable wordlist.
+ * round. offset indicates the number of columns to skip over in the
+ * list of findable words. highlighted, if not negative, is the index
+ * of a letter in the board to highlight. The return value is zero if
+ * the end of screen was reached before the end of the findable
+ * wordlist.
  */
-extern int doendgameoutput(int y, int x, char *highlit, int offset);
+extern int doendgameoutput(int y, int x, int offset, int highlighted);
 
 #endif

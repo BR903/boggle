@@ -86,7 +86,7 @@ int getstartinput(void)
  * the word, or NULL if the user types ^D. All the special keystrokes
  * are handled and uppercase letters are automatically lowered.
  */
-char const *inputword(int enablehelp)
+char *inputword(int enablehelp)
 {
     static char input[WORDBUFSIZ];
     int len, max;
@@ -197,8 +197,10 @@ char const *inputword(int enablehelp)
  */
 int doendgameinputloop(void)
 {
-    char *highlit = NULL;
     char const *input;
+    char *highlighting = NULL;
+    int highlightlen = 0;
+    int index = 0;
     int offset, atend;
     int y, x;
     int ch;
@@ -206,32 +208,48 @@ int doendgameinputloop(void)
     getyx(stdscr, y, x);
     offset = 0;
     for (;;) {
-	atend = doendgameoutput(y, x, highlit, offset);
+	atend = doendgameoutput(y, x, offset,
+				highlighting ? highlighting[index] : -1);
 	refresh();
-	highlit = NULL;
 	ch = getch();
+	if (highlighting) {
+	    halfdelay(7);
+	    ++index;
+	    if (index >= highlightlen || ch != ERR) {
+		free(highlighting);
+		highlighting = NULL;
+		cbreak();
+	    }
+	}
 	switch (ch) {
 	  case CTRL('D'):
 	    return FALSE;
 	  case '&':
 	    return TRUE;
-	  case '?':
-	    addstr("Word to find: ");
-	    refresh();
-	    input = inputword(FALSE);
-	    if (input) {
-		if (!(highlit = findwordingrid(input)))
-		    beep();
-	    }
-	    break;
 	  case '-':
 	    if (offset > 0)
 		--offset;
 	    break;
 	  case '+':
-	  case '=':
+	  case '=':	/* Unshifted plus on various QWERTY-based keyboards */
+	  case '*':
+	  case '1':
+	  case '3':
+	  case '4':
 	    if (!atend)
 		++offset;
+	    break;
+	  case '?':
+	    addstr("Word to find: ");
+	    refresh();
+	    if (!(input = inputword(FALSE)))
+		break;
+	    if (!(highlightlen = findwordingrid(input, &highlighting))) {
+		beep();
+		break;
+	    }
+	    halfdelay(10);
+	    index = 0;
 	    break;
 	}
     }

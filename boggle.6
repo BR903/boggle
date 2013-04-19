@@ -4,7 +4,7 @@
 boggle \- a vocabulary game
 .SH SYNOPSIS
 .B boggle
-[\-45hpsv] [\-t secs] [\-w size] [\-d dict] [\-b size]
+[\-45hlpsv] [\-t secs] [\-w size] [\-d dict] [\-b size]
 .br
 \ \ \ \ \ \ \ [\-B letters] [\-D wordlists]
 .SH DESCRIPTION
@@ -84,6 +84,11 @@ game.
 "Save my ego": the program will not show you the words that you missed
 at the end of the game.
 .TP
+.BI \-l
+Suppresses the use of VT100-style line-drawing characters. Use this
+flag if terminfo reports that your terminal can use line-drawing
+characters when it actually cannot.
+.TP
 .BI \-d " path"
 Specifies
 .I path
@@ -121,42 +126,59 @@ When the program is waiting for a word to be input, the following keys
 have special meaning.
 .TP
 .I SPC
-completes the input (same as RET)
+completes the input (same as RET).
 .TP
 .I ^U ^W
-erases what has been typed so far
+erases what has been typed so far.
 .TP
 .I ^T
-transposes the last two letters typed
+transposes the last two letters typed.
 .TP
 .I ^L ^R
-redraws the entire screen
+redraws the entire screen.
 .TP
 .I ^D
-cancels input, ends the current game (if one is in progress)
+cancels input and ends the current game.
 .TP
 .I ?
-displays the brief online help
+displays the brief online help.
+.P
+After a game has ended, the following key commands are available.
+.TP
+.I &
+starts a new game.
+.TP
+.I ^D
+exits the program.
+.TP
+.I -
+scrolls the wordlist to the right, if there are more words than can
+fit on the screen.
+.TP
+.I +
+scrolls the wordlist to the left.
+.TP
+.I ?
+prompts for a word from the wordlist, and then shows where the word
+can be found.
 .SH DICTIONARY
 The game requires an external dictionary file (except when used in
 batch mode). Any collection of wordlists can be used in conjunction
 with the program (using the
 .I -D
 option) to build a new dictionary. Words in the wordlists that contain
-anything other than lowercase letters are automatically ignored
-(capitalized letters are assumed to indicate proper nouns), as are
-words that contain a Q without a U immediately following.
+anything other than lowercase letters are automatically ignored, as
+capitalized letters are assumed to indicate proper nouns. (Note that
+this means that a wordlist stored entirely in uppercase will show as
+containing no words.) Words that contain a Q without a U immediately
+following are also ignored.
 .P
-Note that building a dictionary takes a bit of time; please be
-patient. The average dictionary size appears to be roughly 2-3 bytes
-per word.
+Building the dictionary takes a bit of time; please be patient. The
+average dictionary size appears to be roughly 2-3 bytes per word.
 .SH FILES
 .TP
 /usr/local/share/games/boggle.dict
 The default pathname for the external dictionary.
-.TP
-/usr/dict/words
-The default wordlist for building the external dictionary. 
 .SH LICENSE
 This program is free software; it is distributed under the terms of
 the GNU General Public License version 2 (or, at your option, any

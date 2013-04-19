@@ -19,13 +19,14 @@ static char const *vourzhon = "Boggle version " VERSION ", (c) 1999 "
 /* The help info.
  */
 static char const *yowzitch =
-	"Usage: boggle [-45hpsv] [-t secs] [-w size] [-d dict] [-b size]\n"
+	"Usage: boggle [-45hlpsv] [-t secs] [-w size] [-d dict] [-b size]\n"
 	"              [-B board] [-D wordlists]\n"
 	"   -4  4x4 grid, 3-letter minimum\n"
 	"   -5  5x5 grid, 4-letter minimum (the default)\n"
 	"   -b  Specify custom grid size (one digit indicates a square grid)\n"
 	"   -d  Specify filename of compiled dictionary\n"
 	"   -h  Display this help\n"
+	"   -l  Don't use VT100 line-drawing characters\n"
 	"   -p  Postpone check for invalid words until after the game ends\n"
 	"   -s  Don't display undiscovered words at end of game\n"
 	"   -t  Specify time for each round (default is 180, or 3 minutes)\n"
@@ -58,7 +59,7 @@ static int startup(int argc, char *argv[])
     for (n = 0 ; n < (int)(sizeof opts / sizeof *opts) ; ++n)
 	opts[n] = NULL;
     for (;;) {
-	n = getopt(argc, argv, "45Bb:Dd:hpst:vw:");
+	n = getopt(argc, argv, "45Bb:Dd:hlpst:vw:");
 	if (n == ':' || n == '?')
 	    expire(NULL);
 	else if (n == EOF)

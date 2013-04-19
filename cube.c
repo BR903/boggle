@@ -26,21 +26,64 @@ char *grid = NULL;
  */
 short (*neighbors)[9] = NULL;
 
-/* The dice to use for grids of size 4x4 and 5x5.
+/* These are the dice in the modern standard Boggle game.
  */
 static char const *sixteendice[16] = {
-	"aaciot", "abilty", "abjmoq", "acdemp",
-	"acelrs", "adenvz", "ahmors", "bfiorx",
-	"dknotu", "ednosw", "eefhiy", "egintv",
-	"egkluy", "ehinps", "elpstu", "gilruw"
+    "aaeegn", "abbjoo", "achops", "affkps",
+    "aoottw", "cimotu", "deilrx", "delrvy",
+    "distty", "eeghnw", "eeinsu", "ehrtvw",
+    "eiosst", "elrtty", "himnqu", "hlnnrz"
 };
+
+/* These are the dice in the modern Boggle Deluxe game.
+ */
 static char const *twentyfivedice[25] = {
-	"aaafrs", "aaeeee", "aafirs", "adennn", "aeeeem",
-	"aegmnn", "aeegum", "afirsy", "bqxkjz", "ccenst",
-	"ceiilt", "ceilpt", "ceipst", "ddhnot", "dhhlor",
-	"dhlnor", "dhlnor", "eiiitt", "emottt", "ensssu",
-	"fiprsy", "gorrvw", "iprrry", "oontuw", "ooottu"
+    "aaafrs", "aaeeee", "aafirs", "adennn", "aeeeem",
+    "aeegmu", "aegmnn", "afirsy", "bjkqxz", "ccnstw",
+    "ceiilt", "ceilpt", "ceipst", "ddlnor", "dhhlor",
+    "dhhnot", "dhlnor", "eiiitt", "emottt", "ensssu",
+    "fiprsy", "gorrvw", "hiprry", "nootuw", "ooottu"
 };
+
+#if 0
+
+/* These are the dice of the older edition of the Boggle game.
+ */
+static char const *sixteendice[16] = {
+    "aaciot", "abilty", "abjmoq", "acdemp",
+    "acelrs", "adenvz", "ahmors", "bfiorx",
+    "denosw", "dknotu", "eefhiy", "egintv",
+    "egkluy", "ehinps", "elpstu", "gilruw"
+};
+
+/* These are the dice of the older edition of the Big Boggle game.
+ */
+static char const *twentyfivedice[25] = {
+    "aaafrs", "aaeeee", "aafirs", "adennn", "aeeeem",
+    "aeegmu", "aegmnn", "afirsy", "bjkqxz", "ccenst",
+    "ceiilt", "ceilpt", "ceipst", "ddhnot", "dhhlor",
+    "dhlnor", "dhlnor", "eiiitt", "emottt", "ensssu",
+    "fiprsy", "gorrvw", "iprrry", "nootuw", "ooottu"
+};
+
+/* These are the dice of the later edition of the Big Boggle game.
+ */
+static char const *twentyfivedice[25] = {
+    "aaafrs", "aaeeee", "aafirs", "aafirs", "adennn",
+    "aeeeem", "aegmnn", "afirsy", "bjkqxz", "ccenst",
+    "ccenst", "ceiilt", "ceilpt", "ceipst", "ddhnot",
+    "dhhlor", "dhlnor", "dhlnor", "eiiitt", "emottt",
+    "fiprsy", "gorrvw", "iprrry", "nootuw", "ooottu"
+};
+
+/* This is the red "bonus" die that came with some of the older Big
+ * Boggle games. One of the standard dice would be replaced by the
+ * bonus die. Scoring was then adjusted so that words using the bonus
+ * die were worth more points.
+ */
+static char const *bonusdie = "iklmqu";
+
+#endif
 
 /* A grid-sized scratch buffer.
  */
@@ -207,24 +250,26 @@ static int auxfindword(int pos, char *word)
     return FALSE;
 }
 
-/* Locate a word within the grid. If the word is not to be found in
- * the current grid, return NULL. Otherwise, return gridtemp, filled
- * out with 1-based indices indicating which letter in the word
- * appears at that cell.
+/* Locate a word within the grid. If positions is not NULL, then if
+ * the word is found, point positions to a buffer indicating the
+ * positions of the letters on the board. The return value is the
+ * length of the word, or 0 if the word cannot be found on the current
+ * grid.
  */
-char *findwordingrid(char const *wd)
+int findwordingrid(char const *wd, char **positions)
 {
     char *pos, *word;
-    int n;
+    int len, n;
     int found = FALSE;
 
     for (n = 0 ; n < gridsize ; ++n)
 	gridtemp[n] = letterindex(grid[n]) + 1;
     if (!(word = wordcopy(wd)))
-	return NULL;
+	return 0;
     for (n = 0 ; word[n] ; ++n)
 	word[n] = letterindex(word[n]) + 1;
-    if (n == 1) {
+    len = n;
+    if (len == 1) {
 	pos = strchr(gridtemp, word[0]);
 	if (pos) {
 	    *pos = sizealphabet + 1;
@@ -244,13 +289,13 @@ char *findwordingrid(char const *wd)
 	}
     }
 
-    free(word);
-    if (!found)
-	return NULL;
+    if (!found || !positions) {
+	free(word);
+	return found ? len : 0;
+    }
     for (n = 0 ; n < gridsize ; ++n)
-	if (gridtemp[n] <= sizealphabet)
-	    gridtemp[n] = 0;
-	else
-	    gridtemp[n] -= sizealphabet;
-    return gridtemp;
+	if (gridtemp[n] > sizealphabet)
+	    word[gridtemp[n] - sizealphabet - 1] = n;
+    *positions = word;
+    return len;
 }

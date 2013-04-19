@@ -4,7 +4,7 @@
 # --datadir
 # --mandir
 
-VER = 1.1
+VER = 1.2
 
 prefix = @prefix@
 
@@ -48,7 +48,7 @@ dist:
 	mkdir boggle-$(VER)
 	chmod g-w boggle-$(VER)
 	mv COPYING README Changelog Makefile.in batch.[ch] boggle.[ch6]	\
-           configure configure.in cube.[ch] dict.[ch] dict.doc		\
+           configure configure.in cube.[ch] dict.[ch] dict-doc.txt	\
            dbuild.[ch] genutil.[ch] input.[ch] install-sh output.[ch]	\
            play.[ch] score.[ch] timer.[ch] wordlist.[ch] words.[ch]	\
            boggle-$(VER)/.
