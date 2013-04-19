@@ -1,0 +1,87 @@
+dnl
+dnl Process this file with autoconf to produce a configure script.
+dnl
+
+AC_INIT(boggle.c)
+
+dnl Check the compiler.
+dnl
+test -z "$CFLAGS" && CFLAGS=-O2
+AC_PROG_CC
+
+dnl Find the installer.
+dnl
+AC_PROG_INSTALL
+
+dnl Check for needed libraries.
+dnl
+AC_CHECK_LIB(ncurses, initscr)
+if test $ac_cv_lib_ncurses_initscr = no; then
+  AC_MSG_ERROR([Boggle requires the ncurses library.])
+fi
+
+dnl Check for header files.
+dnl
+AC_HEADER_STDC
+if test $ac_cv_header_stdc = no; then
+  AC_MSG_ERROR([Boggle requires ANSI C header files.])
+fi
+
+AC_CHECK_HEADERS(unistd.h)
+if test $ac_cv_header_unistd_h = no; then
+  AC_MSG_ERROR([Boggle requires <unistd.h>.])
+fi
+
+dnl
+dnl Double-check the claim to being ANSI C.
+dnl
+
+AC_C_CONST
+if test $ac_cv_c_const = no; then
+  AC_MSG_ERROR([Boggle requires an ANSI compiler that understands "const".])
+fi
+
+AC_TYPE_SIZE_T
+if test $ac_cv_type_size_t = no; then
+  AC_MSG_ERROR([Boggle requires an ANSI compiler that understands "size_t".])
+fi
+
+AC_FUNC_MEMCMP
+if test $ac_cv_func_memcmp_clean = no; then
+  AC_MSG_ERROR([Boggle requires an ANSI compiler that has a working memcmp().])
+fi
+
+AC_FUNC_VPRINTF
+if test $ac_cv_func_vprintf = no; then
+  AC_MSG_ERROR([Boggle requires an ANSI compiler that has vfprintf().])
+fi
+
+AC_CHECK_FUNCS(strerror)
+if test $ac_cv_func_strerror = no; then
+  AC_MSG_ERROR([Boggle requires an ANSI compiler that has strerror().])
+fi
+
+dnl Check for the getopt() function.
+dnl
+AC_CHECK_FUNCS(getopt)
+if test $ac_cv_func_getopt = no; then
+  AC_MSG_ERROR([Boggle requires the presence of the getopt() function.])
+fi
+
+dnl Check for the sigaction() function.
+dnl
+AC_CHECK_FUNCS(sigaction)
+if test $ac_cv_func_sigaction = no; then
+  AC_MSG_ERROR([Boggle requires the presence of the sigaction() function.])
+fi
+
+dnl Adds appropriate compiler flags for gcc.
+dnl
+if test "$GCC" = "yes"; then
+  GCCFLAGS="-Wall -W"
+else
+  GCCFLAGS=
+fi
+AC_SUBST(GCCFLAGS)
+
+AC_OUTPUT(Makefile)

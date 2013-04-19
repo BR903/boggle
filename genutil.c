@@ -1,8 +1,13 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdio.h>
 #include	<stdlib.h>
-#include	<ncurses.h>
+#include	<stdarg.h>
+#include	<curses.h>
 #include	"genutil.h"
 
+/* Wrapper for malloc that aborts upon failure.
+ */
 void *xmalloc(size_t size)
 {
     void *mem;
@@ -17,6 +22,8 @@ void *xmalloc(size_t size)
     return mem;
 }
 
+/* Wrapper for realloc that aborts upon failure.
+ */
 void *xrealloc(void *mem, size_t size)
 {
     mem = realloc(mem, size);
@@ -29,10 +36,15 @@ void *xrealloc(void *mem, size_t size)
     return mem;
 }
 
-void expire(char const *msg)
+/* Display a message on stderr and abort.
+ */
+void expire(char const *format, ...)
 {
-    if (msg) {
-	fputs(msg, stderr);
+    if (format) {
+	va_list	args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
 	fputc('\n', stderr);
     }
     fputs("Use boggle -h to view help.\n", stderr);

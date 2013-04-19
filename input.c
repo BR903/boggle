@@ -1,7 +1,9 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<ctype.h>
-#include	<ncurses.h>
+#include	<curses.h>
 #include	"boggle.h"
 #include	"genutil.h"
 #include	"output.h"
@@ -9,11 +11,17 @@
 #include	"cube.h"
 #include	"input.h"
 
-#define	ctl(c)	(((c) - '@') & 0x7F)
+/* Macro for representing control characters.
+ */
+#define	CTRL(c)	(((c) - '@') & 0x7F)
 
-static int backspacekey = ctl('?');
-static int linekillkey = ctl('U');
+/* User-set values for the backspace and line-erase keys.
+ */
+static int backspacekey = CTRL('?');
+static int linekillkey = CTRL('U');
 
+/* The initialization function for this module.
+ */
 int inputinit(char *opts[])
 {
     if (mode & MM_CURSES) {
@@ -23,18 +31,26 @@ int inputinit(char *opts[])
     return opts != NULL;
 }
 
+/* Get a keystroke at the very beginning of the session, returning
+ * FALSE if the keystore is ^D.
+ */
 int getstartinput(void)
 {
+    addline("Type SPC to begin....");
     for (;;) {
 	int ch = getch();
-	if (ch == ctl('D'))
+	if (ch == CTRL('D'))
 	    return FALSE;
 	else if (ch == ' ')
 	    return TRUE;
     }
 }
 
-char const *inputword(void)
+/* Inputs a word, returning a pointer to a private buffer containing
+ * the word, or NULL if the user types ^D. All the special keystrokes
+ * are handled and uppercase letters are automatically lowered.
+ */
+char const *inputword(int enablehelp)
 {
     static char input[WORDBUFSIZ];
     int len;
@@ -59,28 +75,28 @@ char const *inputword(void)
 	    echochar(ch);
 	} else {
 	    if (ch == backspacekey)
-		ch = ctl('?');
+		ch = CTRL('?');
 	    else if (ch == linekillkey)
-		ch = ctl('U');
+		ch = CTRL('U');
 	    switch (ch) {
 	      case ' ':
 	      case '\r':
 	      case '\n':
 		done = TRUE;
 		break;
-	      case ctl('H'):
-	      case ctl('?'):
+	      case CTRL('H'):
+	      case CTRL('?'):
 		--len;
 		mvaddch(y, x + len, ' ');
 		move(y, x + len);
 		break;
-	      case ctl('U'):
-	      case ctl('W'):
+	      case CTRL('U'):
+	      case CTRL('W'):
 		len = 0;
 		move(y, x);
 		clrtoeol();
 		break;
-	      case ctl('T'):
+	      case CTRL('T'):
 		if (len > 1) {
 		    ch = input[len - 2];
 		    input[len - 2] = input[len - 1];
@@ -89,17 +105,20 @@ char const *inputword(void)
 		} else
 		    beep();
 		break;
-	      case ctl('L'):
-	      case ctl('R'):
+	      case CTRL('L'):
+	      case CTRL('R'):
 		clearok(stdscr, TRUE);
 		refresh();
 		helpdisplay = FALSE;
 		break;
 	      case '?':
-		helpdisplay = !helpdisplay;
-		displayinputhelp(helpdisplay);
+		if (enablehelp) {
+		    helpdisplay = !helpdisplay;
+		    displayinputhelp(helpdisplay);
+		} else
+		    beep();
 		break;
-	      case ctl('D'):
+	      case CTRL('D'):
 		done = stop = TRUE;
 		break;
 	      default:
@@ -123,11 +142,17 @@ char const *inputword(void)
     return input;
 }
 
+/* Gets keystrokes at the end of each game, returning TRUE for & and
+ * FALSE for ^D. If ? is pressed, the function stops to input a word
+ * and then redraws the grid with that word highlighted (presuming it
+ * can be found on the grid).
+ */
 int getendgameinput(void)
 {
     int y, x, ch;
     char *highlit = NULL;
 
+    addline("^D: quit  &: new game  ?: find word");
     getyx(stdscr, y, x);
     for (;;) {
 	move(y, x);
@@ -140,16 +165,16 @@ int getendgameinput(void)
 	    clrtoeol();
 	    refresh();
 	}
-	if (ch == ctl('D'))
+	if (ch == CTRL('D'))
 	    return FALSE;
 	if (ch == '&')
 	    return TRUE;
-	if (ch == ctl('[')) {
+	if (ch == '?') {
 	    char const *input;
 	    addstr("Word to find: ");
 	    refresh();
-	    input = inputword();
-	    if (input && (highlit = findword(input)))
+	    input = inputword(FALSE);
+	    if (input && (highlit = findwordingrid(input)))
 		drawgridletters(highlit);
 	    else
 		beep();

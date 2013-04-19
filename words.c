@@ -1,3 +1,5 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -6,21 +8,63 @@
 #include	"genutil.h"
 #include	"cube.h"
 #include	"wordlist.h"
+#include	"dict.h"
 #include	"words.h"
 
-static const char defdictfile[] = "boggle.dict";
-
+/* Default dictionary pathname.
+ */
 char *dictfilename = NULL;
+
+/* Minimum word length for the current game session.
+ */
 int minlen = 0;
 
-int letterfreq[26];
+/* Letter frequencies for the current dictionary.
+ */
+int letterfreq[SIZE_ALPHABET];
+long freqdenom;
 
-static unsigned *dictionary = NULL;
-static int finalstates = 0;
+/* Pointer to the compressed dictionary.
+ */
+static arc *dictionary = NULL;
 
+/* The index of the first final state in the compressed dictionary.
+ */
+static long finalstates = 0;
+
+/* The list of words that can be found in the current grid.
+ */
 static wordlist findable;
+
+/* The list of words that have been found in the current game.
+ */
 static wordlist found;
 
+/* Reads in a compressed dictionary file.
+ */
+static int readdictfile(FILE *fp)
+{
+    dictfilehead header;
+    int i;
+
+    if (fread(&header, sizeof header, 1, fp) != 1)
+	return FALSE;
+    if (header.sig != DICTFILE_SIG)
+	return FALSE;
+    freqdenom = 0;
+    for (i = 0 ; i < (int)(sizeof letterfreq / sizeof *letterfreq) ; ++i) {
+	letterfreq[i] = (int)header.freq[i];
+	freqdenom += (long)header.freq[i];
+    }
+    finalstates = (long)header.finalstates;
+    dictionary = xmalloc(header.size);
+    if (fread(dictionary, 1, header.size, fp) != (size_t)header.size)
+	return FALSE;
+    return TRUE;
+}
+
+/* Exit function for this module.
+ */
 static void destroy(void)
 {
     free(dictionary);
@@ -29,11 +73,13 @@ static void destroy(void)
     destroywordlist(&found);
 }
 
+/* The initialization function for this module. Parses the cmdline
+ * options -w, -4, and -d, reads the compressed dictionary file into
+ * memory, and initializes static variables.
+ */
 int wordsinit(char *opts[])
 {
     FILE *fp;
-    int n;
-    unsigned short sig;
 
     if (opts['w']) {
 	minlen = atoi(opts['w']);
@@ -52,15 +98,8 @@ int wordsinit(char *opts[])
 	dictfilename = xmalloc(strlen(opts['d']) + 1);
 	strcpy(dictfilename, opts['d']);
     } else {
-	char *basename;
-	basename = strrchr(thisfile, DIRSEPCHAR);
-	if (basename)
-	    n = basename - thisfile + 1;
-	else
-	    n = 0;
-	dictfilename = xmalloc(n + sizeof defdictfile);
-	memcpy(dictfilename, thisfile, n);
-	strcpy(dictfilename + n, defdictfile);
+	dictfilename = xmalloc(sizeof DICTFILEPATH);
+	strcpy(dictfilename, DICTFILEPATH);
     }
 
     if (opts['D']) {
@@ -73,23 +112,13 @@ int wordsinit(char *opts[])
 	perror(dictfilename);
 	expire(NULL);
     }
-    if (fread(&sig, 1, 2, fp) != 2) {
-	perror(dictfilename);
-	expire(NULL);
-    }
-    if (sig != 0xCBDF) {
-	fputs(dictfilename, stderr);
-	expire(": not a valid dictionary file");
-    }
-    if (fread(letterfreq, 4, 26, fp) != 26 || fread(&finalstates, 4, 1, fp) != 1
-					   || fread(&n, 4, 1, fp) != 1) {
-	fputs(dictfilename, stderr);
-	expire(": not a valid dictionary file");
-    }
-    dictionary = xmalloc(n);
-    if ((int)fread(dictionary, 1, n, fp) != n) {
-	perror(dictfilename);
-	expire(NULL);
+    errno = 0;
+    if (!readdictfile(fp)) {
+	if (errno) {
+	    perror(dictfilename);
+	    expire(NULL);
+	} else
+	    expire("%s: not a valid dictionary file", dictfilename);
     }
     fclose(fp);
 
@@ -99,16 +128,24 @@ int wordsinit(char *opts[])
     return TRUE;
 }
 
+/* Returns the finable list of words.
+ */
 char const **getfindable(void)
 {
     return (char const**)findable.words;
 }
 
+/* Returns the found list of words.
+ */
 char const **getfound(void)
 {
     return (char const**)found.words;
 }
 
+/* Accepts a word to be added to the found wordlist. If check is TRUE,
+ * then it only accepts the word if it is currently in the findable
+ * wordlist, in which case it is then removed.
+ */
 int acceptword(char const *word, int check)
 {
     char **pos;
@@ -123,6 +160,10 @@ int acceptword(char const *word, int check)
     return TRUE;
 }
 
+/* Removes all words from the found wordlist that are not in the
+ * findable wordlist, and then removes all words from the findable
+ * wordlist that are in the found wordlist.
+ */
 void filterfound(void)
 {
     int n;
@@ -146,22 +187,34 @@ void filterfound(void)
     }
 }
 
-void auxfindall(char *gd, int pos, int idx, char *word, int len)
+/* A recursive function that does the real work for findall(). The
+ * function is called with the prefix of a word in the dictionary
+ * having already been located on the grid. gd is a modifiable copy of
+ * the grid, with the cells making up the found prefix replaced with
+ * '.', pos is the cell that the prefix ends on, idx is the index into
+ * the compressed dictionary for the end of the prefix, word is the
+ * prefix itself, and len is the length of the prefix. For each
+ * neighbor of pos, the function call itself recursively if the
+ * current prefix plus the letter at the neighboring cell is also a
+ * valid prefix. Whenever a complete word is found this way, the word
+ * is added to the findable wordlist.
+ */
+void auxfindall(char *gd, int pos, long idx, char *word, int len)
 {
-    unsigned node;
+    arc *node;
     int ltr;
     int i, n;
     char saved;
 
+    node = dictionary + idx;
     for (;;) {
-	node = dictionary[idx];
-	ltr = node & 0xFF;
+	ltr = node->letter;
 	if (ltr == gd[pos]) {
-	    idx = node >> 9;
+	    idx = node->node;
 	    break;
-	} else if (ltr > gd[pos] || node & 0x0100)
+	} else if (ltr > gd[pos] || node->end)
 	    return;
-	++idx;
+	++node;
     }
     saved = word[len++] = gd[pos];
     if (gd[pos] == 'q')
@@ -179,6 +232,10 @@ void auxfindall(char *gd, int pos, int idx, char *word, int len)
     gd[pos] = saved;
 }
 
+/* Compiles the findable wordlist based on the current grid and the
+ * compressed dictionary, returning the number of findable words, and
+ * empties the found wordlist.
+ */
 int findall(void)
 {
     char *gd, *word;

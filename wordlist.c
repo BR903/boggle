@@ -1,11 +1,22 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdlib.h>
 #include	<string.h>
 #include	"genutil.h"
 #include	"wordlist.h"
 
+/* How much to increase the array of string pointers by each time
+ * space runs out.
+ */
 static const int listchunk = 64;
+
+/* The size of each pool.
+ */
 static const int poolchunk = 4096;
 
+/* Initializes a wordlist structure. Allocates the first pool and
+ * sets the list's size to zero.
+ */
 void initwordlist(wordlist *list)
 {
     list->words = xmalloc(listchunk * sizeof(char*));
@@ -18,6 +29,9 @@ void initwordlist(wordlist *list)
     list->words[0] = NULL;
 }
 
+/* Appends a word to the end of a wordlist, (re)allocating memory as
+ * necessary.
+ */
 void addwordtolist(wordlist *list, char const *word)
 {
     char **pool;
@@ -26,7 +40,6 @@ void addwordtolist(wordlist *list, char const *word)
     n = strlen(word) + 1;
     if (list->poolptr + n > list->poolstop) {
 	pool = (char**)(list->poolstop - poolchunk);
-	assert(*pool == NULL);
 	*pool = xmalloc(poolchunk);
 	*(char**)*pool = NULL;
 	list->poolptr = *pool + sizeof(char*);
@@ -42,30 +55,17 @@ void addwordtolist(wordlist *list, char const *word)
     list->poolptr += n;
 }
 
-static int wordcmp(const void *w1, const void *w2)
-{
-    return strcmp(*(char**)w1, *(char**)w2);
-}
-
-char **findwordinlist(wordlist const *list, char const *word)
-{
-    return (char**)bsearch(&word, list->words, list->count,
-			   sizeof(char*), wordcmp);
-}
-
-void sortwordlist(wordlist *list)
-{
-    qsort(list->words, list->count, sizeof(char*), wordcmp);
-}
-
+/* Removes a word from a list. Note that the string itself is not
+ * removed from the pools.
+ */
 void strikewordfromlist(wordlist *list, int idx)
 {
-    assert(idx >= 0 && idx < list->count);
     memmove(list->words + idx, list->words + idx + 1,
-	    (list->count - idx) * sizeof(char*));
-    --list->count;
+	    ((list->count--) - idx) * sizeof(char*));
 }
 
+/* Frees all memory associated with a wordlist.
+ */
 void destroywordlist(wordlist *list)
 {
     char **pool, **nextpool;
@@ -77,4 +77,26 @@ void destroywordlist(wordlist *list)
 	    free(pool);
 	}
     }
+}
+
+/* A comparison callback function.
+ */
+static int wordcmp(void const *w1, void const *w2)
+{
+    return strcmp(*(char**)w1, *(char**)w2);
+}
+
+/* Sorts the words in a wordlist.
+ */
+void sortwordlist(wordlist *list)
+{
+    qsort(list->words, list->count, sizeof(char*), wordcmp);
+}
+
+/* Returns the index for a word in a wordlist.
+ */
+char **findwordinlist(wordlist const *list, char const *word)
+{
+    return (char**)bsearch(&word, list->words, list->count,
+			   sizeof(char*), wordcmp);
 }

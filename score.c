@@ -1,3 +1,5 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -7,23 +9,52 @@
 #include	"output.h"
 #include	"score.h"
 
-#define	PLURAL(n)	(n), ((n) == 1 ? "" : "s")
+/* Macros to automatically handle plurals inside printf argument lists.
+ */
+#define WORDS(n)	(n), ((n) == 1 ? "word" : "words")
+#define POINTS(n)	(n), ((n) == 1 ? "point" : "points")
+#define GAMES(n)	(n), ((n) == 1 ? "game" : "games")
 
-static const int wordscores[] = { 0, 1, 1, 1, 1, 2, 3, 5, 11 };
+
+/* A structure that holds all the different statistics kept on the
+ * game(s) being played. The paired elements are the statistic for the
+ * most recent game, and the running total for all the games played
+ * in this session, respectively.
+ */
+typedef	struct scores {
+    int		ncount1, ncount;	/* number of found words	*/
+    int		nscore1, nscore;	/* points for the found words	*/
+    int		dcount1, dcount;	/* number of words present	*/
+    int		dscore1, dscore;	/* points for the words present	*/
+    int		gamecount;		/* number of games played	*/
+} scores;
+
+/* How many points the various word lengths are worth.
+ */
+static const int wordscores[] = { 0, 0, 1, 1, 1, 2, 3, 5, 11 };
 static const int maxwordscores = sizeof wordscores / sizeof *wordscores;
 
+/* Whether or not to show the unfound words at the end of each game.
+ */
 static int ego = 0;
 
-static int ncount1, nscore1, dcount1, dscore1;
-static int ncount = 0, nscore = 0, dcount = 0, dscore = 0;
-static int gamecount = 0;
+/* The player's statistics, initially all zero.
+ */
+static scores scoring = { };
 
+/* The initialization function for this module. Parses the cmdline
+ * option -o.
+ */
 int scoreinit(char *opts[])
 {
     ego = opts['o'] != NULL;
     return TRUE;
 }
 
+/* Display all the words that were found (and the ones that were not
+ * found, unless -o was used), and computer the player's current
+ * statistics.
+ */
 void reportwords(void)
 {
     char const **found;
@@ -32,28 +63,28 @@ void reportwords(void)
 
     found = getfound();
     findable = getfindable();
-    nscore1 = 0;
+    scoring.nscore1 = 0;
     for (i = 0 ; found[i] ; ++i) {
 	n = strlen(found[i]);
 	if (n > maxwordscores)
 	    n = maxwordscores;
-	nscore1 += wordscores[n];
+	scoring.nscore1 += wordscores[n];
     }
-    ncount1 = i;
-    dscore1 = nscore1;
+    scoring.ncount1 = i;
+    scoring.dscore1 = scoring.nscore1;
     for (i = 0 ; findable[i] ; ++i) {
 	n = strlen(findable[i]);
 	if (n > maxwordscores)
 	    n = maxwordscores;
-	dscore1 += wordscores[n];
+	scoring.dscore1 += wordscores[n];
     }
-    dcount1 = ncount1 + i;
+    scoring.dcount1 = scoring.ncount1 + i;
 
-    ncount += ncount1;
-    dcount += dcount1;
-    nscore += nscore1;
-    dscore += dscore1;
-    ++gamecount;
+    scoring.ncount += scoring.ncount1;
+    scoring.dcount += scoring.dcount1;
+    scoring.nscore += scoring.nscore1;
+    scoring.dscore += scoring.dscore1;
+    ++scoring.gamecount;
 
     movetowords(TRUE);
     listwords("Your words:", found);
@@ -61,15 +92,20 @@ void reportwords(void)
 	listwords("Other words that were present:", findable);
 }
 
+/* Display the current statistics.
+ */
 void reportscore(void)
 {
     movetostatus(TRUE);
-    addline("%d word%s, scoring %d point%s", PLURAL(ncount1), PLURAL(nscore1));
+    addline("%d %s, scoring %d %s",
+	    WORDS(scoring.ncount1), POINTS(scoring.nscore1));
     if (!ego) {
-	addline("(of a possible %d scoring %d point%s)",
-		dcount1, PLURAL(dscore1));
-	addline("%.2f%% over %d game%s (%.2f%% by score)",
-		((100.0 * ncount) / dcount), PLURAL(gamecount),
-		((100.0 * nscore) / dscore));
+	addline("(of a possible %d scoring %d %s)",
+		scoring.dcount1, POINTS(scoring.dscore1));
+	if (scoring.dcount && scoring.dscore)
+	    addline("%.2f%% over %d %s (%.2f%% by score)",
+		    ((100.0 * scoring.ncount) / scoring.dcount),
+		    GAMES(scoring.gamecount),
+		    ((100.0 * scoring.nscore) / scoring.dscore));
     }
 }

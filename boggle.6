@@ -1,0 +1,166 @@
+.TH BOGGLE 6 "April 1999"
+.LO 1
+.SH NAME
+boggle \- a vocabulary game
+.SH SYNOPSIS
+.B boggle
+[\-45hpsv] [\-t secs] [\-w size] [\-d dict] [\-b size]
+.br
+\ \ \ \ \ \ \ [\-B letters] [\-D wordlists]
+.SH DESCRIPTION
+.B Boggle
+is a solitaire game, based on Parker Brothers game, in which the
+object is to find as many words as possible within the board in a
+given time. The board consists of a rectangular arrangement of
+letters. A word is found by tracing a connected chain of letters. Each
+letter must be adjacent to the next horizontally, vertically, or
+diagonally. Letters may not be reused within a single word.
+.P
+The configuration matching the original Parker Brothers game uses a
+4x4 grid of letters and a minimum word length of three letters. The
+configuration for the sequel uses a 5x5 grid and a four-letter
+minimum. (And both configurations have a three-minute time limit.)
+Other configurations can be specified via the command-line options.
+.P
+During a game the program will automatically reject illegal words
+(i.e., words that are too short, cannot be legally made, or are not in
+the dictionary). At the end of each game the program will then display
+the remaining words that were possible to make, and a running
+score. These features can also be altered via the command-line
+options.
+.SH OPTIONS
+.TP
+.BI \-h
+Display help and exit.
+.TP
+.BI \-v
+Display version number and exit.
+.TP
+.BI \-b " mn"
+Specifies a custom grid size of
+.I m
+x
+.IR n ,
+with the dimensions being between 2 and 9 (inclusive).
+.BR
+When the grid is 4x4 or 5x5, the program uses the letter probabilities
+given by the original Parker Brothers games. With other grid sizes,
+the program computes its own probabilities, based upon the letter
+frequencies of the English language.
+.TP
+.BI \-b " n"
+Same as above, giving a square grid of size
+.I n
+x
+.IR n .
+.TP
+.BI \-w " n"
+Specifies a minimum word length of
+.I n
+letters.
+.I n
+must be greater than one.
+.TP
+.BI \-4
+Equivalent to 
+.IR "-b 4 -w 3" .
+.TP
+.BI \-5
+Equivalent to
+.IR "-b 5 -w 4" .
+.TP
+.BI \-t " n"
+Specifies the amount of time for each game as
+.I n
+seconds.
+.TP
+.BI \-p
+Postpones "filtering" until after the game. By default, when an
+illegal word is entered it is immediately rejected. Using this option
+leaves all checking (except word length) to be done at the end of the
+game.
+.TP
+.BI \-s
+"Save my ego": the program will not show you the words that you missed
+at the end of the game.
+.TP
+.BI \-d " path"
+Specifies
+.I path
+as the pathname of the dictionary file.
+.P
+(The following options enable different features of the program. They
+both accept multiple arguments, and so must be the last options on the
+command line.)
+.TP
+.BI \-B
+"Batch mode": Use of this option causes the program to run as a
+filter. The arguments should be a series of letters that are used to
+fill the grid (left-to-right, top-to-bottom). The input should consist
+of a wordlist (i.e., one word per line).  The words that can be found
+in the specified grid are echoed to the output. This option can be
+used in conjunction with
+.IR -b ,
+.IR -w ,
+.IR -4
+and
+.IR -5 ;
+all other options are ignored. The dictionary file is not consulted
+when in this mode.
+.TP
+.BI \-D
+"Dictionary compiler": Use this option to compile a new dictionary
+file. The arguments should be the pathname(s) of one or more
+wordlists, and the union of their contents is compiled into the
+dictionary file. If no wordlists are specified, standard input is used
+by default. This option can be used in conjunction with
+.IR -d ;
+all other options are ignored.
+.SH INPUT KEYS
+When the program is waiting for a word to be input, the following keys
+have special meaning.
+.TP
+.I SPC
+completes the input (same as RET)
+.TP
+.I ^U ^W
+erases what has been typed so far
+.TP
+.I ^T
+transposes the last two letters typed
+.TP
+.I ^L ^R
+redraws the entire screen
+.TP
+.I ^D
+cancels input, ends the current game (if one is in progress)
+.TP
+.I ?
+displays the brief online help
+.SH DICTIONARY
+The game requires an external dictionary file (except when used in
+batch mode). Any collection of wordlists can be used in conjunction
+with the program (using the
+.I -D
+option) to build a new dictionary. Words in the wordlists that contain
+anything other than lowercase letters are automatically ignored
+(capitalized letters are assumed to indicate proper nouns), as are
+words that contain a Q without a U immediately following.
+.P
+Note that building a dictionary takes a bit of time; please be
+patient. The average dictionary size appears to be roughly 2-3 bytes
+per word.
+.SH FILES
+.TP
+/usr/local/share/games/boggle.dict
+The default pathname for the external dictionary.
+.TP
+/usr/dict/words
+The default wordlist for building the external dictionary. 
+.SH LICENSE
+This program is free software; it is distributed under the terms of
+the GNU General Public License version 2 (or, at your option, any
+later version).
+.SH AUTHOR
+Brian Raiter
+.IR <breadbox@muppetlabs.com> .

@@ -1,0 +1,132 @@
+Most of the code comprising the program is relatively straightforward.
+The only part that could be described as complex is the code that
+handles the compressed dictionary. Herein is a description of how the
+dictionary is created and organized.
+
+The dictionary is stored as a directed graph, which metamorphoses
+through three stages of representation as it is being created. Each
+representation, however, has as its core the following structure:
+
+struct arc {
+    int32bits	letter	: 8,
+		end	: 1,
+	    	node	: 23;
+};
+
+The node field contains the index of the node that this arc points to.
+The letter field contains the character that is attached to the arc.
+The end field is set for the last arc belonging to a node.
+
+The first representation of the dictionary graph is created by
+readwordlists(), as the wordlist source files are being read. In this
+form, the arcs are created in a heap, using the following structure:
+
+struct treearc {
+    arc		arc;
+    treearc    *sibling;
+    treearc    *child;
+};
+
+Included with each arc are two pointers to other arcs, called sibling
+and child. The child pointer indicates the node that the arc points
+to. (This partially duplicates the index value in the arc.node field,
+but because the arcs are being stored in a heap instead of an array,
+the index in the arc.node field cannot be used as an array index just
+yet.) The sibling pointer points to the next arc that originates from
+the same node as this one; thus each node in the graph consists of a
+linked list of arcs. The end of a linked list of arcs is indicated by
+the sibling pointer being NULL, and thus the arc.end field is instead
+set to indicate that the arc is the last character of a valid word.
+(This is somewhat redundant, as the NUL byte at the end of each word
+is included in this graph.) The heap itself is also a linked list of
+chunks, or pools, of allocated memory. The first arc in a given pool
+is left unused, except for the sibling pointer, which is used to store
+a pointer to the next pool. This representation is most convenient
+while the graph is first being built, since there is no way of knowing
+beforehand how many arcs a given node will need to have. Finally, this
+function also tallies the frequency of each letter across the entire
+dictionary.
+
+In the second representation, sibling arcs are brought together, and a
+separate memory space is created for the actual nodes:
+
+struct treenode {
+    arc	       *arcs;
+    arc	       *parcs;
+    int		group;
+    treenode   *nextingroup;
+    int		arccount: 8,
+		wordend	: 1,
+		grouped	: 1;
+};
+
+The arcs field is a pointer to an array of the arcs that originate at
+this node; the arccount field contains the size of this array. The
+remaining fields are for use in compressing the dictionary graph.
+
+The function serializetree() begins by collecting the lists of arcs
+for each node and writing out each list as an array of arc structures
+to a temporary file. (A temporary file is used so as not to have to
+try to fit two copies of the uncompressed dictionary in memory at the
+same time.) The arcs use the indices created during the first
+representation to identify which node they point to (the index of the
+head of the linked list of arcs being used as the identifier for the
+node). Each array so written out is preceded by an arc structure with
+a NUL byte for the letter, the node field containing the node's
+identifying number, and the wordend field set appropriately.
+
+Once all the arcs have been processed in this fashion, the original
+tree is deallocated, and in its place is allocated an array of nodes
+and a heap for storing sets of arcs. The temporary file is rewound,
+and the sets of arcs are read back into the new heap, with the array
+of nodes being created simultaneously.
+
+The arc set heap is allocated to be twice as big as actually needed,
+and each node is assigned enough memory to hold two copies of its arc
+set: one pointed to by the arcs field, one pointed to by the parcs
+field. This is used during the next metamorphosis: the compression of
+the dictionary graph. The compression algorithm is the standard
+partitioning of nodes method used to compress a DFA. (See the Dragon
+Book for more information.) Since the dictionary graph is essentially
+a tree, there may be a better, more specific algorithm for compressing
+it, but this algorithm works and its result is guaranteed to be
+optimally compressed. When it is complete, every node has been
+assigned a new positive integer, stored in the group field, and only
+one node for each unique number needs to be copied to the final
+compressed dictionary graph.
+
+The third and final representation is created in the destination file,
+rather than in memory, and consists solely an array of arc structures.
+Each node is represented by a contiguous set of arcs, with the node's
+last arc having the end flag set. The index for each node is the index
+into the array of the first arc belonging to that node.
+
+writetreetofile() is the function that creates this representation in
+the compressed dictionary file. The function starts by creating a
+translation table of group numbers to node indices. The new indices
+are one-based, and are set up so that each node index is the position
+of the node's first arc in the complete array. The nodes are also
+rearranged so that all nodes that have the end flag set will be placed
+at the end. Thus, only the lowest such node index will need to be
+remembered in order to know if a given node is at the end of a word in
+the dictionary.
+
+The compressed dictionary file contains a 2-byte signature, the table
+of letter frequencies, the index of the first node that marks the end
+of a word, and the number of bytes in the arc array. After this is
+stored the arc array itself, with the node field of each arc
+translated into the new node indices.
+
+When a word needs to be looked up in the compressed dictionary, the
+first node is examined by starting at the first set of arcs. The
+character associated with each arc is tested until one matches the
+first letter of the word, or until an arc with the end flag is
+reached. In the latter case, the word is not in the dictionary, and
+the process ends. In the former case, the node field gives the index
+of the set of arcs to compare with the second letter, and so on. If
+this process continues until all the letters in the word have been
+successfully found, then the current index for the next set of arcs is
+compared with the index stored at the top of the compressed dictionary
+file. If the current index is greater than or equal to this number,
+then the dictionary contains the word in question; otherwise, it does
+not.

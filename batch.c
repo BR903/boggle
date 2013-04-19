@@ -1,3 +1,5 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdio.h>
 #include	<string.h>
 #include	"genutil.h"
@@ -5,11 +7,17 @@
 #include	"words.h"
 #include	"batch.h"
 
+/* Filter stdin according to the given grid. The strings in the function
+ * arguments are pasted together to make a grid, aborting if the pasted
+ * string is of the incorrect size. Then, lines from stdin are read, and
+ * only the lines that contain a single word that can be found in the
+ * given grid are echoed to stdout.
+ */
 int filtergrid(int count, char *pieces[])
 {
     char buf[WORDBUFSIZ];
     int skipnext;
-    int i, m, n;
+    int i, m, n = 0;
 
     if (!count)
 	expire("No letters specified.");
@@ -32,7 +40,7 @@ int filtergrid(int count, char *pieces[])
 		continue;
 	    }
 	    buf[n] = '\0';
-	    if (n >= minlen && findword(buf))
+	    if (n >= minlen && findwordingrid(buf))
 		puts(buf);
 	} else
 	    skipnext = TRUE;

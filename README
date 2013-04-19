@@ -1,0 +1,22 @@
+Boggle requires a decent version of ncurses and an ANSI C compiler;
+beyond that, it should compile on any modern Unix-like system without
+too much trouble.
+
+Boggle requires an external dictionary file (unless you only ue the
+batch mode) before it can be used. To build one, use the -D option and
+any collection of wordlists. The default location for the dictionary
+file is set at compile-time, via the DICTFILEPATH macro, to
+/usr/local/share/games/boggle.dict. /usr/local/share may be changed by
+using the --datadir switch with ./configure. If you want to change it
+further, you should edit the Makefile so that DICTFILEPATH contains
+the desired pathname.
+
+If you're looking for a better wordlist for building a dictionary than
+what's provided in /usr/dict/words, try the Moby project web pages:
+<http://www.dcs.shef.ac.uk/research/ilash/Moby/>.
+
+This program is free software; it is distributed under the terms of
+the GNU General Public License version 2 (or, at your option, any
+later version). See COPYING for specifics. Share and enjoy.
+
+Brian Raiter <breadbox@muppetlabs.com>

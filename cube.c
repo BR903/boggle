@@ -1,41 +1,64 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdlib.h>
 #include	<string.h>
 #include	"boggle.h"
 #include	"genutil.h"
+#include	"words.h"
 #include	"cube.h"
 
+/* Obtain a random number between 0 and N - 1.
+ */
+#define rnd(N)		    ((int)(((float)rand() * (N)) / (float)RAND_MAX))
+
+/* The width, height and number of cells in the current grid.
+ */
 int width = 0, height = 0, gridsize = 0;
+
+/* The contents of the current grid.
+ */
 char *grid = NULL;
+
+/* The lists of each cell's neighboring cells. neighbors[n][0] is the
+ * count of neighbors for the nth cell, and neighbors[n][1] through
+ * neighbors[n][neighbors[n][0]] contain the actual indices (in no
+ * particular order).
+ */
 short (*neighbors)[9] = NULL;
 
-static const char *sixteendice[16] = {
+/* The dice to use for grids of size 4x4 and 5x5.
+ */
+static char const *sixteendice[16] = {
 	"ednosw", "aaciot", "acelrs", "ehinps",
 	"eefhiy", "elpstu", "acdemp", "gilruw",
 	"egkluy", "ahmors", "abilty", "adenvz",
 	"bfiorx", "dknotu", "abjmoq", "egintv"
 };
-static const char *twentyfivedice[25] = {
+static char const *twentyfivedice[25] = {
 	"aegmnn", "aafirs", "ensssu", "aaeeee", "aeegum",
 	"ceipst", "ddhnot", "adennn", "oontuw", "ccenst",
 	"dhlnor", "ooottu", "emottt", "afirsy", "dhhlor",
 	"eiiitt", "gorrvw", "aeeeem", "dhlnor", "ceilpt",
 	"aaafrs", "fiprsy", "ceiilt", "iprrry", "bqxkjz"
 };
-static const float letterfreq[26] = {
-	 2493,  3140,  4387,  5643,  9524,  9987, 10999, 11734, 14548,
-	14613, 14953, 16663, 17562, 19762, 21745, 22683, 22742, 25104,
-	28250, 30325, 31399, 31733, 32043, 32141, 32631, 32768
-};
 
+/* A gridsized scratch buffer.
+ */
 static char *gridtemp;
-static const char **dice;
 
-#define rnd(N)		    ((int)(((float)rand() * (N)) / (float)RAND_MAX))
+/* A pointer to the dice array, if dice are being used.
+ */
+static char const **dice;
 
+/* Macro for adding the nth cell to the list of neighbors for the cell
+ * at (x,y) if it exists.
+ */
 #define	addneighbor(n, y, x)						\
     ((void)((x) >= 0 && (x) < width && (y) >= 0 && (y) < height		\
 	    && (neighbors[n][++neighbors[n][0]] = (y) * width + (x))))
 
+/* Exit function for this module.
+ */
 static void destroy(void)
 {
     free(grid);
@@ -43,6 +66,10 @@ static void destroy(void)
     free(neighbors);
 }
 
+/* The initialization function for this module. Parses the cmdline
+ * options -4 and -b (-5 is ignored, being the default), and
+ * allocates and/or initializes static variables.
+ */
 int cubeinit(char *opts[])
 {
     int	i, n, x, y;
@@ -104,6 +131,20 @@ int cubeinit(char *opts[])
     return TRUE;
 }
 
+static int letterindex(char letter)
+{
+    int i;
+
+    for (i = 0 ; i < SIZE_ALPHABET ; ++i)
+	if (ALPHABET[i] == letter)
+	    return i;
+    return 0;
+}
+
+/* Fill the grid with randomly selected letters. If the grid's
+ * dimensions are either 4x4 or a 5x5, then dice are used. Otherwise,
+ * letters are selected based on the letterfreq table.
+ */
 void shakecube(void)
 {
     int i, n;
@@ -118,28 +159,41 @@ void shakecube(void)
 	}
     } else {
 	for (i = 0 ; i < gridsize ; ++i) {
-	    int m = rnd(32768);
-	    n = 0;
-	    while (letterfreq[n] < m)
-		++n;
-	    grid[i] = 'a' + n;
+	    int m = rnd(freqdenom);
+	    n = -1;
+	    do
+		m -= letterfreq[++n];
+	    while (m > 0);
+	    grid[i] = ALPHABET[n];
 	}
     }
 }
 
+/* Return a newly allocated buffer with the given word copied into it,
+ * with any occurrences of "qu" shortened to "q".
+ */
 static char *wordcopy(char const *in)
 {
     char *out, *ret;
 
     for (out = ret = xmalloc(strlen(in) + 1) ; *in ; ++in, ++out) {
 	*out = *in;
-	if (*in == 'q')
+	if (*in == 'q') {
 	    ++in;
+	    if (*in != 'u') {
+		free(ret);
+		return NULL;
+	    }
+	}
     }
     *out = '\0';
     return ret;
 }
 
+/* A recursive function that does the real work for findwordingrid().
+ * Returns TRUE if word can be found by starting at pos. The function
+ * assumes that the first letter of word has already been verified.
+ */
 static int auxfindword(int pos, char *word)
 {
     int i, n;
@@ -156,24 +210,33 @@ static int auxfindword(int pos, char *word)
     return FALSE;
 }
 
-char *findword(char const *wd)
+/* Locate a word within the grid. If the word is not to be found in
+ * the current grid, return NULL. Otherwise, return gridtemp, filled
+ * out with 1-based indices indicating which letter in the word
+ * appears at that cell.
+ */
+char *findwordingrid(char const *wd)
 {
     char *pos, *word;
     int n;
     int found = FALSE;
 
-    memcpy(gridtemp, grid, gridsize);
-    word = wordcopy(wd);
+    for (n = 0 ; n < gridsize ; ++n)
+	gridtemp[n] = letterindex(grid[n]) + 1;
+    if (!(word = wordcopy(wd)))
+	return NULL;
+    for (n = 0 ; word[n] ; ++n)
+	word[n] = letterindex(word[n]) + 1;
     if (!word[1]) {
 	pos = strchr(gridtemp, word[0]);
 	if (pos) {
-	    *pos = 1;
+	    *pos = SIZE_ALPHABET + 1;
 	    found = TRUE;
 	}
     } else {
 	n = 0;
 	while ((pos = memchr(gridtemp + n, word[0], gridsize - n)) != NULL) {
-	    *pos = 1;
+	    *pos = SIZE_ALPHABET + 1;
 	    n = pos - gridtemp;
 	    if (auxfindword(n, word + 1)) {
 		found = TRUE;
@@ -188,7 +251,9 @@ char *findword(char const *wd)
     if (!found)
 	return NULL;
     for (n = 0 ; n < gridsize ; ++n)
-	if (gridtemp[n] >= 'a')
+	if (gridtemp[n] <= SIZE_ALPHABET)
 	    gridtemp[n] = 0;
+	else
+	    gridtemp[n] -= SIZE_ALPHABET;
     return gridtemp;
 }

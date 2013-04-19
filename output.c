@@ -1,28 +1,42 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdlib.h>
 #include	<ctype.h>
 #include	<stdarg.h>
 #include	<signal.h>
-#include	<ncurses.h>
+#include	<curses.h>
 #include	"boggle.h"
 #include	"genutil.h"
 #include	"cube.h"
-#include	"input.h"
 #include	"output.h"
 
-static const char *inputhelp[] = { "<--------------------------------------->",
+/* The text of the online help.
+ */
+static char const *inputhelp[] = { "<----------------------------------->",
 				   "SPC or RET . . enter current word",
 				   "^U or ^W . . . erase current word",
-				   "BKSP . . . . . erase last letter",
-				   "^T . . . . . . transpose last letters",
+				   "BKSP . . . . . erase letter",
+				   "^T . . . . . . transpose letters",
 				   "^L or ^R . . . redraw screen",
 				   "^D . . . . . . quit current game",
 				   "?  . . . . . . display help"
 };
 
-static int ywords = 0, xwords = 0, ystatus = 0, xstatus = 0;
+/* The top left coordinates of the area where wordlists are displayed.
+ */
+static int ywords = 0, xwords = 0;
 
+/* The top left coordinates of the area where the player's status is
+ * displayed.
+ */
+static int ystatus = 0, xstatus = 0;
+
+/* The curses attribute to use for highlighting.
+ */
 static int highlightattr = A_STANDOUT;
 
+/* Exit function for the module.
+ */
 static void destroy(void)
 {
     int y, x;
@@ -37,6 +51,9 @@ static void destroy(void)
     endwin();
 }
 
+#ifdef SIGWINCH
+/* Signal handler for SIGWINCH.
+ */
 static void onresize(int sig)
 {
     if (sig == SIGWINCH) {
@@ -45,7 +62,11 @@ static void onresize(int sig)
 	refresh();
     }
 }
+#endif	/* SIGWINCH */
 
+/* The initialization function for this module. Calculates the various
+ * screen coordinates and initializes curses.
+ */
 int outputinit(char *opts[])
 {
     struct sigaction act;
@@ -64,19 +85,31 @@ int outputinit(char *opts[])
     noecho();
     cbreak();
     getmaxyx(stdscr, y, x);
+    if (xstatus + 1 >= x || ywords + 1 >= y) {
+	endwin();
+	fputs("Screen too small\n", stderr);
+	exit(EXIT_FAILURE);
+    }
+
     setscrreg(ywords, y - 1);
     highlightattr = termattrs() & A_BOLD ? A_BOLD : A_STANDOUT;
 
     atexit(destroy);
+
+#ifdef SIGWINCH
     act.sa_handler = onresize;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     sigaction(SIGWINCH, &act, NULL);
+#endif	/* SIGWINCH */
 
     return TRUE;
     (void)opts;
 }
 
+/* Moves the cursor to the top left of the area where words are
+ * displayed, and erase the area if clear is TRUE.
+ */
 void movetowords(int clear)
 {
     move(ywords, xwords);
@@ -84,6 +117,9 @@ void movetowords(int clear)
 	clrtobot();
 }
 
+/* Moves the cursor to the top left of the area where the game status
+ * is displayed, and erase the area if clear is TRUE.
+ */
 void movetostatus(int clear)
 {
     if (clear) {
@@ -96,18 +132,34 @@ void movetostatus(int clear)
     move(ystatus, xstatus);
 }
 
+/* Displays a line of text (using printf-style formatting) and move
+ * the cursor down one line, using its current x-coordinate as the
+ * left margin.
+ */
 void addline(char const *fmt, ...)
 {
-    int y, x;
+    char buf[256];
+    int y, x, n;
     va_list args;
 
-    va_start(args, fmt);
+    getmaxyx(stdscr, y, n);
     getyx(stdscr, y, x);
-    vw_printw(stdscr, (char*)fmt, args);
+    va_start(args, fmt);
+    vsprintf(buf, (char*)fmt, args);
+    addnstr(buf, n - x);
     move(y + 1, x);
     va_end(args);
 }
 
+/* Lists all the words in the given array. The current cursor location
+ * gives the upper left of the area to use, which is assumed to extend
+ * to the edges of the screen. The supplied heading is displayed
+ * first, then the words are displayed in a column; if the bottom of
+ * the screen is reached, then another column is begun.  (The longest
+ * word in the list sets the width of the columns.) If the right edge
+ * of the screen is reached, an ellipsis is displayed in the bottom
+ * right corner.
+ */
 void listwords(char const *heading, char const **list)
 {
     char const **word;
@@ -160,6 +212,11 @@ void listwords(char const *heading, char const **list)
     move(ymin - 1, x);
 }
 
+/* Displays the letters in the grid. If highlighting is not NULL, then
+ * it gives an gridsized array of boolean values. For each element
+ * that is positive, the corresponding letter is displayed with
+ * highlighting.
+ */
 void drawgridletters(char const *highlighting)
 {
     int	ypos, xpos, x, n;
@@ -185,6 +242,8 @@ void drawgridletters(char const *highlighting)
     }
 }
 
+/* Displays the current grid.
+ */
 void drawgrid(void)
 {
     int y, x;
@@ -236,6 +295,9 @@ void drawgrid(void)
 
 }
 
+/* Displays brief online help for the special keys during input if
+ * show is TRUE, or erases it if show is FALSE.
+ */
 void displayinputhelp(int show)
 {
     int y, x, xleft;
@@ -243,6 +305,10 @@ void displayinputhelp(int show)
 
     getmaxyx(stdscr, y, x);
     xleft = x - strlen(inputhelp[0]);
+    if (xleft < xstatus) {
+	beep();
+	return;
+    }
     getyx(stdscr, y, x);
     for (n = 1 ; n < (int)(sizeof inputhelp / sizeof *inputhelp) ; ++n) {
 	move(n, xleft);

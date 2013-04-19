@@ -1,3 +1,5 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #ifndef	_genutil_h_
 #define	_genutil_h_
 
@@ -6,17 +8,25 @@
 #define	FALSE	0
 #endif
 
-#ifndef	DIRSEPCHAR
-#define	DIRSEPCHAR	'/'
-#endif
+/* Our alphabet.
+ */
+#define	ALPHABET		"abcdefghijklmnopqrstuvwxyz"
+#define	SIZE_ALPHABET		((int)sizeof(ALPHABET) - 1)
 
-#define	WORDBUFSIZ	99
+/* The maximum size needed for word buffers.
+ */
+#define	WORDBUFSIZ	82
 
+/* Wrapper for malloc that aborts upon failure.
+ */
 extern void *xmalloc(size_t size);
-extern void *xrealloc(void *mem, size_t size);
-extern void expire(char const *msg);
 
-#define	auxassert(Z,L)  ((void)((Z) || (expire("CRASH " __FILE__ ":" #L), 0)))
-#define assert(Z)	(auxassert(Z, __LINE__))
+/* Wrapper for realloc that aborts upon failure.
+ */
+extern void *xrealloc(void *mem, size_t size);
+
+/* Display a message on stderr and abort.
+ */
+extern void expire(char const *msg, ...);
 
 #endif

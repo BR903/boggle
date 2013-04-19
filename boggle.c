@@ -1,15 +1,23 @@
+/* (C) 1999 Brian Raiter (under the terms of the GPL) */
+
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<unistd.h>
 #include	"genutil.h"
-#include	"output.h"
 #include	"dbuild.h"
 #include	"batch.h"
 #include	"play.h"
 #include	"boggle.h"
 
-static const char *vourzhon = "Boggle version 0.9, written by Brian Raiter\n";
-static const char *yowzitch =
+/* The version info.
+ */
+static char const *vourzhon = "Boggle version " VERSION ", (c) 1999 "
+			      "by Brian Raiter\nunder the terms "
+			      "of the GNU General Public License.\n";
+
+/* The help info.
+ */
+static char const *yowzitch =
 	"Usage: boggle [-45hpsv] [-t secs] [-w size] [-d dict] [-b size]\n"
 	"              [-B board] [-D wordlists]\n"
 	"   -4  4x4 grid, 3-letter minimum\n"
@@ -27,9 +35,18 @@ static const char *yowzitch =
 	"   -D  Compile a new dictionary from the specified wordlist files;\n"
 	"       use -d to specify an alternate destination file.\n";
 
+/* What "program" to run (the solitaire game is the default mode).
+ */
 int mode = MODE_SOLITAIRE;
+
+/* argv[0].
+ */
 char const *thisfile;
 
+/* Parse the cmdline arguments and initialize the program. This
+ * function returns FALSE to indicate that the program should exit
+ * immediately without error.
+ */
 static int startup(int argc, char *argv[])
 {
     char *opts[256];
@@ -40,7 +57,7 @@ static int startup(int argc, char *argv[])
     for (n = 0 ; n < (int)(sizeof opts / sizeof *opts) ; ++n)
 	opts[n] = NULL;
     for (;;) {
-	n = getopt(argc, argv, "45Bb:Dd:hpst:vw:x");
+	n = getopt(argc, argv, "45Bb:Dd:hpst:vw:");
 	if (n == ':' || n == '?')
 	    expire(NULL);
 	else if (n == EOF)
@@ -64,15 +81,15 @@ static int startup(int argc, char *argv[])
 	&& playinit(opts);
 }
 
+/* Run the program.
+ */
 int main(int argc, char *argv[])
 {
     if (!startup(argc, argv))
 	return EXIT_SUCCESS;
 
-    if (!(mode & MM_ARGS) && optind != argc) {
-	fprintf(stderr, "Unrecongized argument - %s\n", argv[optind]);
-	expire(NULL);
-    }
+    if (!(mode & MM_ARGS) && optind != argc)
+	expire("Unrecongized argument - %s\n", argv[optind]);
 
     switch (mode) {
       case MODE_MAKEDICT:  return makedictfile(argc - optind, argv + optind);
