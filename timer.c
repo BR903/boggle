@@ -1,5 +1,6 @@
 /* (C) 1999 Brian Raiter (under the terms of the GPL) */
 
+#define	_POSIX_SOURCE
 #include	<stdlib.h>
 #include	<time.h>
 #include	<signal.h>
@@ -58,12 +59,12 @@ void onpause(int sig)
  */
 int timerinit(char *opts[])
 {
-#ifdef SIGTSTP
+#if defined SIGTSTP && defined SA_RESTART
     pausing.sa_handler = onpause;
     sigemptyset(&pausing.sa_mask);
     pausing.sa_flags = SA_RESTART;
     sigaction(SIGTSTP, &pausing, &prevtstp);
-#endif	/* SIGTSTP */
+#endif	/* SIGTSTP && SA_RESTART */
 
     srand((unsigned)time(NULL));
 

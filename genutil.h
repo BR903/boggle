@@ -8,11 +8,6 @@
 #define	FALSE	0
 #endif
 
-/* Our alphabet.
- */
-#define	ALPHABET		"abcdefghijklmnopqrstuvwxyz"
-#define	SIZE_ALPHABET		((int)sizeof(ALPHABET) - 1)
-
 /* The maximum size needed for word buffers.
  */
 #define	WORDBUFSIZ	82

@@ -3,6 +3,7 @@
 #ifndef	_dict_h_
 #define	_dict_h_
 
+#include	<stdio.h>
 #include	"genutil.h"
 
 /* Default dictionary pathname if none is specified at compile-time.
@@ -11,34 +12,64 @@
 #define	DICTFILEPATH		"boggle.dict"
 #endif
 
-/* The first four bytes of a compressed dictionary file.
- */
-#define	DICTFILE_SIG		0xCBDF
-
-/* Sized integer types.
- */
-typedef unsigned short	uint2bytes;
-typedef	unsigned long	uint4bytes;
-
 /* An arc in the dictionary graph.
  */
-typedef	struct arc {
-    uint4bytes	letter	: 8,	/* the letter attached to this arc	*/
-		end	: 1,	/* indicates the last arc in the node	*/
-	    	node	: 23;	/* index of the node this arc points to	*/
-} arc;
+typedef unsigned long		arc;
 
-/* The dictionary file header.
+/* Macros to access and change a dictionary arc.
  */
-typedef	struct dictfilehead {
-    uint4bytes	sig;			/* equal to DICTFILE_SIG	*/
-    uint2bytes	freq[SIZE_ALPHABET];	/* letter frequency ratios	*/
-    uint4bytes	finalstates;		/* index of first end node	*/
-    uint4bytes	size;			/* size of dictionary proper	*/
-} dictfilehead;
+#define	getarcletter(arc)		((int)((arc) >> 23) & 0xFF)
+#define	getarcend(arc)			((int)((arc) & 0x80000000L))
+#define	getarcnext(arc)			((long)((arc) & 0x007FFFFFL))
+
+#define	setarcletter(arc, ltr)		((arc) |= ((ltr) & 0xFFUL) << 23)
+#define	setarcend(arc, end)		((arc) |= (end) ? 0x80000000UL : 0)
+#define	setarcnext(arc, next)		((arc) |= (next) & 0x007FFFFFUL)
+
+#define	setarc(arc, ltr, end, next)	((arc) = ((next) & 0x007FFFFFUL)    \
+					       | (((ltr) & 0xFFUL) << 23)   \
+					       | ((end) ? 0x80000000UL : 0))
 
 /* The pathname for the compressed dictionary.
  */
 extern char *dictfilename;
+
+/* The alphabet.
+ */
+extern char *alphabet;
+extern int sizealphabet;
+
+/* Letter frequencies for the current dictionary.
+ */
+extern int *letterfreq;
+extern long freqdenom;
+
+/* Pointer to the compressed dictionary.
+ */
+extern arc *dictionary;
+
+/* The total number of arcs in the dictionary.
+ */
+extern long dictarccount;
+
+/* The index of the first final state in the compressed dictionary.
+ */
+extern long dictfinalstates;
+
+/* Read a dictionary file into memory. Returns zero on success.
+ */
+extern int readdictfile(void);
+
+/* Write the dictionary file header out to the given file.
+ */
+extern int writefilehead(FILE *fp);
+
+/* Write the given number of arcs out to the given file.
+ */
+extern int writefilenodes(FILE *fp, arc const *nodes, long count);
+
+/* Return the size of the dictionary file header.
+ */
+extern int fileheadsize(void);
 
 #endif

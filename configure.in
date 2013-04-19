@@ -53,7 +53,7 @@ fi
 
 AC_FUNC_VPRINTF
 if test $ac_cv_func_vprintf = no; then
-  AC_MSG_ERROR([Boggle requires an ANSI compiler that has vfprintf().])
+  AC_MSG_ERROR([Boggle requires an ANSI compiler that has vprintf().])
 fi
 
 AC_CHECK_FUNCS(strerror)

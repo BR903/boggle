@@ -11,26 +11,9 @@
 #include	"dict.h"
 #include	"words.h"
 
-/* Default dictionary pathname.
- */
-char *dictfilename = NULL;
-
 /* Minimum word length for the current game session.
  */
 int minlen = 0;
-
-/* Letter frequencies for the current dictionary.
- */
-int letterfreq[SIZE_ALPHABET];
-long freqdenom;
-
-/* Pointer to the compressed dictionary.
- */
-static arc *dictionary = NULL;
-
-/* The index of the first final state in the compressed dictionary.
- */
-static long finalstates = 0;
 
 /* The list of words that can be found in the current grid.
  */
@@ -40,47 +23,19 @@ static wordlist findable;
  */
 static wordlist found;
 
-/* Reads in a compressed dictionary file.
- */
-static int readdictfile(FILE *fp)
-{
-    dictfilehead header;
-    int i;
-
-    if (fread(&header, sizeof header, 1, fp) != 1)
-	return FALSE;
-    if (header.sig != DICTFILE_SIG)
-	return FALSE;
-    freqdenom = 0;
-    for (i = 0 ; i < (int)(sizeof letterfreq / sizeof *letterfreq) ; ++i) {
-	letterfreq[i] = (int)header.freq[i];
-	freqdenom += (long)header.freq[i];
-    }
-    finalstates = (long)header.finalstates;
-    dictionary = xmalloc(header.size);
-    if (fread(dictionary, 1, header.size, fp) != (size_t)header.size)
-	return FALSE;
-    return TRUE;
-}
-
 /* Exit function for this module.
  */
 static void destroy(void)
 {
-    free(dictionary);
-    free(dictfilename);
     destroywordlist(&findable);
     destroywordlist(&found);
 }
 
 /* The initialization function for this module. Parses the cmdline
- * options -w, -4, and -d, reads the compressed dictionary file into
- * memory, and initializes static variables.
+ * options -w and -4, and initializes static variables.
  */
 int wordsinit(char *opts[])
 {
-    FILE *fp;
-
     if (opts['w']) {
 	minlen = atoi(opts['w']);
 	if (minlen < 2)
@@ -90,38 +45,10 @@ int wordsinit(char *opts[])
     else
 	minlen = 4;
 
-    if (opts['B'])
+    if (mode == MODE_BATCH || mode == MODE_MAKEDICT)
 	return TRUE;
+
     atexit(destroy);
-
-    if (opts['d']) {
-	dictfilename = xmalloc(strlen(opts['d']) + 1);
-	strcpy(dictfilename, opts['d']);
-    } else {
-	dictfilename = xmalloc(sizeof DICTFILEPATH);
-	strcpy(dictfilename, DICTFILEPATH);
-    }
-
-    if (opts['D']) {
-	mode = MODE_MAKEDICT;
-	return TRUE;
-    }
-
-    fp = fopen(dictfilename, "rb");
-    if (!fp) {
-	perror(dictfilename);
-	expire(NULL);
-    }
-    errno = 0;
-    if (!readdictfile(fp)) {
-	if (errno) {
-	    perror(dictfilename);
-	    expire(NULL);
-	} else
-	    expire("%s: not a valid dictionary file", dictfilename);
-    }
-    fclose(fp);
-
     initwordlist(&findable);
     initwordlist(&found);
 
@@ -208,11 +135,11 @@ void auxfindall(char *gd, int pos, long idx, char *word, int len)
 
     node = dictionary + idx;
     for (;;) {
-	ltr = node->letter;
+	ltr = getarcletter(*node);
 	if (ltr == gd[pos]) {
-	    idx = node->node;
+	    idx = getarcnext(*node);
 	    break;
-	} else if (ltr > gd[pos] || node->end)
+	} else if (ltr > gd[pos] || getarcend(*node))
 	    return;
 	++node;
     }
@@ -220,7 +147,7 @@ void auxfindall(char *gd, int pos, long idx, char *word, int len)
     if (gd[pos] == 'q')
 	word[len++] = 'u';
     gd[pos] = '.';
-    if (len >= minlen && idx >= finalstates) {
+    if (len >= minlen && idx >= dictfinalstates) {
 	word[len] = '\0';
 	addwordtolist(&findable, word);
     }

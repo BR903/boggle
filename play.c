@@ -1,7 +1,6 @@
 /* (C) 1999 Brian Raiter (under the terms of the GPL) */
 
 #include	<stdlib.h>
-#include	<curses.h>
 #include	"boggle.h"
 #include	"genutil.h"
 #include	"words.h"
@@ -37,30 +36,22 @@ int playsolitaire(void)
 	    shakecube();
 	while (!findall());
 
-	clear();
-	drawgrid();
-	movetowords(FALSE);
-	scrollok(stdscr, TRUE);
-	addch('\n');
-	refresh();
+	displaygamestart();
+	addtocolumn(-1);
 	starttimer(0);
 	while (runtimer()) {
 	    char const *input = inputword(TRUE);
 	    if (!input || !*input)
 		break;
-	    addch(acceptword(input, feedback) ? '\n' : '\r');
-	    clrtoeol();
-	    refresh();
+	    addtocolumn(acceptword(input, feedback) ? strlen(input) : 0);
 	}
 	stoptimer();
-	scrollok(stdscr, FALSE);
 
 	if (!feedback)
 	    filterfound();
-	reportwords();
+	scoregame();
 	reportscore();
-	refresh();
-	if (!getendgameinput())
+	if (!doendgameinputloop())
 	    break;
     }
 

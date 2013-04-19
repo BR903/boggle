@@ -7,11 +7,6 @@
  */
 extern int minlen;
 
-/* Letter frequencies for the current dictionary.
- */
-extern int letterfreq[SIZE_ALPHABET];
-extern long freqdenom;
-
 /* Returns the array of words that can be found in the current game.
  */
 extern char const **getfindable(void);

@@ -13,6 +13,9 @@
 
 /* Macro for representing control characters.
  */
+#ifdef CTRL
+#undef CTRL
+#endif
 #define	CTRL(c)	(((c) - '@') & 0x7F)
 
 /* User-set values for the backspace and line-erase keys.
@@ -29,6 +32,39 @@ int inputinit(char *opts[])
 	linekillkey = killchar();
     }
     return opts != NULL;
+}
+
+/* Move the cursor to the next line, or to the next column if at the
+ * bottom of the screen. If size is zero, erase the current line. If
+ * size is negative, use the current cursor position as the start of
+ * the first column.
+ */
+void addtocolumn(int size)
+{
+    static int ycol = 0, xcol = 0, coltop = 0, colwidth = 0;
+    int y, x;
+
+    if (size < 0) {
+	getyx(stdscr, ycol, xcol);
+	coltop = ycol;
+	colwidth = 0;
+    } else if (size == 0) {
+	move(ycol, xcol);
+	clrtoeol();
+	refresh();
+    } else {
+	if (colwidth < size)
+	    colwidth = size;
+	++ycol;
+	getmaxyx(stdscr, y, x);
+	if (ycol >= y) {
+	    ycol = coltop;
+	    xcol += colwidth + 1;
+	    colwidth = 0;
+	}
+	move(ycol, xcol);
+	refresh();
+    }
 }
 
 /* Get a keystroke at the very beginning of the session, returning
@@ -53,14 +89,18 @@ int getstartinput(void)
 char const *inputword(int enablehelp)
 {
     static char input[WORDBUFSIZ];
-    int len;
+    int len, max;
     int done, stop;
     int helpdisplay = FALSE;
     int	y, x, ch;
 
     len = 0;
     done = stop = FALSE;
+    getmaxyx(stdscr, y, max);
     getyx(stdscr, y, x);
+    max -= x + 1;
+    if (max >= (int)(sizeof input))
+	max = sizeof input - 1;
     clrtoeol();
 
     while (!done && runtimer()) {
@@ -71,8 +111,11 @@ char const *inputword(int enablehelp)
 	    beep();
 	} else if (isalpha(ch)) {
 	    ch = tolower(ch);
-	    input[len++] = ch;
-	    echochar(ch);
+	    if (len < max) {
+		input[len++] = ch;
+		echochar(ch);
+	    } else
+		beep();
 	} else {
 	    if (ch == backspacekey)
 		ch = CTRL('?');
@@ -86,9 +129,12 @@ char const *inputword(int enablehelp)
 		break;
 	      case CTRL('H'):
 	      case CTRL('?'):
-		--len;
-		mvaddch(y, x + len, ' ');
-		move(y, x + len);
+		if (len) {
+		    --len;
+		    mvaddch(y, x + len, ' ');
+		    move(y, x + len);
+		} else
+		    beep();
 		break;
 	      case CTRL('U'):
 	      case CTRL('W'):
@@ -145,39 +191,48 @@ char const *inputword(int enablehelp)
 /* Gets keystrokes at the end of each game, returning TRUE for & and
  * FALSE for ^D. If ? is pressed, the function stops to input a word
  * and then redraws the grid with that word highlighted (presuming it
- * can be found on the grid).
+ * can be found on the grid). The keys - and =/+ causes the wordlist
+ * to be scrolled horizontally, if it cannot be fully displayed on the
+ * screen.
  */
-int getendgameinput(void)
+int doendgameinputloop(void)
 {
-    int y, x, ch;
     char *highlit = NULL;
+    char const *input;
+    int offset, atend;
+    int y, x;
+    int ch;
 
-    addline("^D: quit  &: new game  ?: find word");
     getyx(stdscr, y, x);
+    offset = 0;
     for (;;) {
-	move(y, x);
-	clrtoeol();
+	atend = doendgameoutput(y, x, highlit, offset);
+	refresh();
+	highlit = NULL;
 	ch = getch();
-	if (highlit) {
-	    highlit = NULL;
-	    drawgridletters(NULL);
-	    move(y, x);
-	    clrtoeol();
-	    refresh();
-	}
-	if (ch == CTRL('D'))
+	switch (ch) {
+	  case CTRL('D'):
 	    return FALSE;
-	if (ch == '&')
+	  case '&':
 	    return TRUE;
-	if (ch == '?') {
-	    char const *input;
+	  case '?':
 	    addstr("Word to find: ");
 	    refresh();
 	    input = inputword(FALSE);
-	    if (input && (highlit = findwordingrid(input)))
-		drawgridletters(highlit);
-	    else
-		beep();
+	    if (input) {
+		if (!(highlit = findwordingrid(input)))
+		    beep();
+	    }
+	    break;
+	  case '-':
+	    if (offset > 0)
+		--offset;
+	    break;
+	  case '+':
+	  case '=':
+	    if (!atend)
+		++offset;
+	    break;
 	}
     }
 }

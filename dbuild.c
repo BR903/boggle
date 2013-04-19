@@ -9,26 +9,32 @@
 #include	"dict.h"
 #include	"dbuild.h"
 
+/* The range of legal characters in our alphabet.
+ */
+#define	MAX_ALPHABET		256
+
 /* An arc in an uncompressed dictionary graph.
  */
 typedef struct treearc treearc;
 struct treearc {
-    arc		arc;		/* the essential arc data		*/
-    treearc    *sibling;	/* the next arc attached to this node	*/
-    treearc    *child;		/* the first child node			*/
+    long	    nodeid;	/* a unique identifier			*/
+    treearc	   *sibling;	/* the next arc attached to this node	*/
+    treearc	   *child;	/* the first child node			*/
+    unsigned char   letter;	/* the arc's letter			*/
+    char	    wordend;	/* TRUE if at the end of a word		*/
 };
 
 /* A node in an uncompressed dictionary graph.
  */
 typedef struct treenode treenode;
 struct treenode {
-    arc	       *arcs;		/* the arcs leading from this node	*/
-    arc	       *parcs;		/* a new, equivalent set of arcs	*/
-    long	group;		/* this node's partition group number	*/
-    treenode   *nextingroup;	/* the next node in the same partition	*/
-    int		arccount: 8,	/* the count of arcs at this node	*/
-		wordend	: 1,	/* TRUE if a word ends at this node	*/
-		grouped	: 1;	/* TRUE if this node is in a partition	*/
+    arc		   *arcs;	/* the arcs leading from this node	*/
+    arc		   *parcs;	/* a new, equivalent set of arcs	*/
+    long	    group;	/* this node's partition group number	*/
+    treenode	   *nextingrp;	/* the next node in the same partition	*/
+    unsigned char   arccount;	/* the count of arcs at this node	*/
+    unsigned char   wordend;	/* TRUE if a word ends at this node	*/
+    unsigned char   grouped;	/* TRUE if this node is in a partition	*/
 };
 
 /* How many arcs to allocate at a time.
@@ -55,9 +61,9 @@ static treenode *wordtreeroot = NULL;
  */
 static void *arcsetpool = NULL;
 
-/* Letter frequencies for the dictionary.
+/* Letter frequencies in the dictionary.
  */
-static long frequencies[SIZE_ALPHABET];
+static long frequencies[MAX_ALPHABET];
 
 /* Whether or not to display relatively useless data while compressing
  * the dictionary.
@@ -73,27 +79,11 @@ static char *defwordlist = "-";
 static char *currfilename = NULL;
 static FILE *currfp = NULL;
 
-/* Macros for abbreviating file I/O and handling errors.
+/* Macros for handling file errors.
  */
-#define	openfile(name, mode)						\
-    ((currfp = fopen((currfilename = (name)), (mode))) ?		\
-	TRUE : (perror(currfilename), exit(EXIT_FAILURE)))
-#define readobj(obj)							\
-    (fread(&(obj), sizeof(obj), 1, currfp) == 1 ?			\
-	TRUE : (perror(currfilename), exit(EXIT_FAILURE)))
-#define	readobjs(obj, n)						\
-    (fread((obj), sizeof(*(obj)), (n), currfp) == (size_t)(n) ?		\
-	TRUE : (perror(currfilename), exit(EXIT_FAILURE)))
-#define writeobj(obj)							\
-    (fwrite(&(obj), sizeof(obj), 1, currfp) == 1 ?			\
-	TRUE : (perror(currfilename), exit(EXIT_FAILURE)))
-#define	writeobjs(obj, n)						\
-    (fwrite((obj), sizeof(*(obj)), (n), currfp) == (size_t)(n) ?	\
-	TRUE : (perror(currfilename), exit(EXIT_FAILURE)))
-#define closefile()							\
-    ((ferror(currfp) || fclose(currfp)) ?				\
-	(perror(currfilename), exit(EXIT_FAILURE)) :			\
-	(void)(currfp = NULL, currfilename = NULL))
+#define	errfile()	(perror(currfilename), exit(EXIT_FAILURE), 0)
+#define closefile()	(ferror(currfp) || fclose(currfp) ? (void*)errfile() :\
+					(currfp = NULL, currfilename = NULL))
 
 /* Outputs relatively useless data on stderr.
  */
@@ -102,8 +92,9 @@ static void report(char const *format, ...)
     if (verbose) {
 	va_list args;
 	va_start(args, format);
-	vfprintf(stderr, format, args);
+	vprintf(format, args);
 	va_end(args);
+	fflush(stdout);
     }
 }
 
@@ -131,7 +122,7 @@ static int checkover(char *word)
 
 /* Returns an unused arc, allocating more arc pools as needed.
  */
-static treearc *grabnewtreearc(char letter, int nodeid)
+static treearc *grabnewtreearc(unsigned char letter, int nodeid)
 {
     static treearc *poolptr = NULL;
     static long arcalloced = 0;
@@ -142,12 +133,12 @@ static treearc *grabnewtreearc(char letter, int nodeid)
 	arcalloced += arcchunk - 1;
 	poolptr->sibling = arcpools;
 	poolptr->child = poolptr + arcchunk;
-	poolptr->arc.node = 0;
 	arcpools = poolptr++;
     }
-    poolptr->arc.letter = letter;
-    poolptr->arc.node = nodeid;
     poolptr->sibling = poolptr->child = NULL;
+    poolptr->letter = letter;
+    poolptr->wordend = FALSE;
+    poolptr->nodeid = nodeid;
     ++arccount;
     return poolptr++;
 }
@@ -166,6 +157,7 @@ static int readwordlists(int filecount, char *files[], treearc *root)
     int usestdin;
     int i, n;
 
+    memset(frequencies, 0, sizeof frequencies);
     for (i = 0 ; i < filecount ; ++i) {
 	usestdin = files[i][0] == '-' && files[i][1] == '\0';
 	if (usestdin) {
@@ -173,7 +165,8 @@ static int readwordlists(int filecount, char *files[], treearc *root)
 	    currfp = stdin;
 	} else {
 	    currfilename = files[i];
-	    openfile(files[i], "r");
+	    if (!(currfp = fopen(files[i], "r")))
+		errfile();
 	}
 	report("Reading words from %s ...\n", currfilename);
 	while (fgets(word, sizeof word, currfp)) {
@@ -188,24 +181,26 @@ static int readwordlists(int filecount, char *files[], treearc *root)
 		continue;
 	    }
 	    tarc = root;
-	    for (ltr = word ; *ltr ; ++ltr)
-		++frequencies[*ltr - 'a'];
-	    for (ltr = word ; *ltr ; ++ltr) {
-		while (tarc->arc.letter != *ltr && tarc->sibling)
+	    for (ltr = (unsigned char*)word ; *ltr ; ++ltr)
+		++frequencies[*ltr];
+	    for (ltr = (unsigned char*)word ; *ltr ; ++ltr) {
+		while (tarc->letter != *ltr && tarc->sibling)
 		    tarc = tarc->sibling;
-		if (tarc->arc.letter != *ltr) {
-		    if (tarc->arc.letter)
+		if (tarc->letter != *ltr) {
+		    if (tarc->letter)
 			tarc = tarc->sibling = grabnewtreearc(*ltr, 0);
 		    else
-			tarc->arc.letter = *ltr;
+			tarc->letter = *ltr;
 		}
 		if (!tarc->child)
 		    break;
 		tarc = tarc->child;
 	    }
-	    while (*ltr++)
-		tarc = tarc->child = grabnewtreearc(*ltr, ++nodecount);
-	    tarc->arc.end = TRUE;
+	    while (*ltr++) {
+		tarc->child = grabnewtreearc(*ltr, ++nodecount);
+		tarc = tarc->child;
+	    }
+	    tarc->wordend = TRUE;
 	    ++count;
 	}
 	if (usestdin) {
@@ -223,26 +218,41 @@ static int readwordlists(int filecount, char *files[], treearc *root)
     return count;
 }
 
+/* Determine which letters are in our alphabet, and compute their
+ * frequencies.
+ */
 static void computefrequencies(void)
 {
     unsigned long total;
     long error, cutoff;
     double f;
-    int i;
+    int i, n;
 
+    sizealphabet = 0;
     total = 0;
-    for (i = 0 ; i < (int)(sizeof frequencies / sizeof *frequencies) ; ++i)
+    for (i = 0 ; i < MAX_ALPHABET ; ++i) {
+	if (!frequencies[i])
+	    continue;
 	total += frequencies[i];
+	++sizealphabet;
+    }
+    alphabet = xmalloc(sizealphabet * sizeof *alphabet);
+    letterfreq = xmalloc(sizealphabet * sizeof *letterfreq);
     cutoff = total / 2;
     error = -cutoff;
-    for (i = 0 ; i < (int)(sizeof frequencies / sizeof *frequencies) ; ++i) {
+    n = 0;
+    for (i = 0 ; i < MAX_ALPHABET ; ++i) {
+	if (!frequencies[i])
+	    continue;
+	alphabet[n] = (char)i;
 	f = frequencies[i] * 32768.0;
-	frequencies[i] = f / total;
+	letterfreq[n] = f / total;
 	error += f - ((double)frequencies[i] * total) + 0.25;
 	while (error >= cutoff) {
-	    ++frequencies[i];
+	    ++letterfreq[n];
 	    error -= total;
 	}
+	++n;
     }
 }
 
@@ -252,42 +262,43 @@ static void computefrequencies(void)
  */
 static void serializetree(void)
 {
-    arc tempnode = { 0, 0, 0 };
-    arc temparcs[128];
+    arc temparcs[MAX_ALPHABET];
     arc *arcset;
-    treearc *arcpool, *tarc;
+    treearc *arcpool, *tarc, *ta;
     treenode *node;
-    long n;
+    unsigned char count;
+    long i, n;
 
     currfilename = "temporary file";
-    currfp = tmpfile();
-    if (!currfp) {
-	perror("Cannot create temporary file");
-	exit(EXIT_FAILURE);
-    }
+    if (!(currfp = tmpfile()))
+	errfile();
 
     for (arcpool = arcpools ; arcpool ; arcpool = arcpool->sibling) {
 	for (tarc = arcpool + 1 ; tarc != arcpool->child ; ++tarc) {
-	    if (!tarc->arc.node)
+	    if (!tarc->nodeid)
 		continue;
-	    tempnode.node = tarc->arc.node;
-	    tempnode.end = tarc->arc.end;
-	    writeobj(tempnode);
-	    if (tarc->arc.letter) {
-		treearc *ta;
+	    if (fwrite(&tarc->nodeid, sizeof tarc->nodeid, 1, currfp) != 1)
+		errfile();
+	    if (fwrite(&tarc->wordend, sizeof tarc->wordend, 1, currfp) != 1)
+		errfile();
+	    count = 0;
+	    if (tarc->letter) {
 		memset(temparcs, 0, sizeof temparcs);
-		n = 0;
-		for (ta = tarc ; ta ; ta = ta->sibling, ++n) {
-		    temparcs[ta->arc.letter].letter = ta->arc.letter;
-		    temparcs[ta->arc.letter].node = ta->child->arc.node;
+		for (ta = tarc ; ta ; ta = ta->sibling, ++count) {
+		    n = ta->letter;
+		    setarcletter(temparcs[n], n);
+		    setarcnext(temparcs[n], ta->child->nodeid);
 		}
-		writeobj(n);
-		for (n = 1 ; n < 128 ; ++n)
-		    if (temparcs[n].node)
-			writeobj(temparcs[n]);
+		if (fwrite(&count, sizeof count, 1, currfp) != 1)
+		    errfile();
+		for (n = 1 ; n < MAX_ALPHABET ; ++n) {
+		    if (temparcs[n])
+			if (fwrite(&temparcs[n], sizeof(arc), 1, currfp) != 1)
+			    errfile();
+		}
 	    } else {
-		n = 0;
-		writeobj(n);
+		if (fwrite(&count, sizeof count, 1, currfp) != 1)
+		    errfile();
 	    }
 	}
     }
@@ -301,7 +312,7 @@ static void serializetree(void)
     }
 
     report("Allocating %d bytes for the ordered tree.\n",
-	   (nodecount + 1) * sizeof(treenode) +
+	   (nodecount + 2) * sizeof(treenode) +
 		(nodecount - 1) * sizeof(arc) * 2);
 
     arcpools = NULL;
@@ -309,18 +320,24 @@ static void serializetree(void)
     arcset = arcsetpool = xmalloc((nodecount - 1) * sizeof(arc) * 2);
     wordtreeroot = wordtree + 1;
 
-    for (n = 0 ; n < nodecount ; ++n) {
-	readobj(tempnode);
-	node = wordtree + tempnode.node;
-	readobj(node->arccount);
-	node->wordend = tempnode.end;
+    for (i = 0 ; i < nodecount ; ++i) {
+	if (fread(&n, sizeof n, 1, currfp) != 1)
+	    errfile();
+	node = wordtree + n;
+	if (fread(&count, sizeof count, 1, currfp) != 1)
+	    errfile();
+	node->wordend = count ? 1 : 0;
+	if (fread(&count, sizeof count, 1, currfp) != 1)
+	    errfile();
 	node->arcs = arcset;
-	arcset += node->arccount;
+	arcset += count;
 	node->parcs = arcset;
-	arcset += node->arccount;
-	if (!node->arccount)
-	    continue;
-	readobjs(node->arcs, node->arccount);
+	arcset += count;
+	node->arccount = count;
+	if (count) {
+	    if (fread(node->arcs, count * sizeof(arc), 1, currfp) != 1)
+		errfile();
+	}
     }
 
     closefile();
@@ -334,30 +351,35 @@ static int partitiontree(void)
 {
     treenode **gchart;
     treenode *node, *next;
-    long i;
     long groupcount, prevgroupcount;
+    long i;
 
-    gchart = xmalloc((nodecount + 1) * sizeof(treenode*));
+    gchart = xmalloc((nodecount + 1) * sizeof *gchart);
     wordtree[0].group = 0;
+    prevgroupcount = 0;
+    groupcount = 0;
     for (i = 1, node = wordtreeroot ; i <= nodecount ; ++i, ++node) {
-	node->group = node->wordend ? 2 : 1;
+	node->group = node->arccount * 2;
+	if (node->wordend)
+	    ++node->group;
+	if (node->group > groupcount)
+	    groupcount = node->group;
 	node->grouped = FALSE;
 	memcpy(node->parcs, node->arcs, node->arccount * sizeof(arc));
     }
     wordtree[nodecount + 1].group = 0;
-    groupcount = 2;
-    prevgroupcount = 0;
     report("Compressing ... ");
 
     while (groupcount != prevgroupcount) {
-	report("%d ... ", groupcount);
 	for (i = 1 ; i <= groupcount ; ++i)
 	    gchart[i] = NULL;
-	for (node = wordtreeroot ; node->group ; ++node)
+	for (node = wordtreeroot ; node->group ; ++node) {
 	    for (i = 0 ; i < node->arccount ; ++i)
-		node->parcs[i].node = wordtree[node->arcs[i].node].group;
+		setarc(node->parcs[i], getarcletter(node->arcs[i]), FALSE,
+		       wordtree[getarcnext(node->arcs[i])].group);
+	}
 	for (--node ; node->group ; --node) {
-	    node->nextingroup = gchart[node->group];
+	    node->nextingrp = gchart[node->group];
 	    gchart[node->group] = node;
 	}
 	prevgroupcount = groupcount;
@@ -367,17 +389,16 @@ static int partitiontree(void)
 		node->grouped = FALSE;
 		continue;
 	    }
-	    i = node->group;
 	    node->group = ++groupcount;
-	    for (next = node->nextingroup ; next ; next = next->nextingroup) {
-		if (!next->grouped && next->arccount == node->arccount
-				   && !memcmp(node->parcs, next->parcs,
+	    for (next = node->nextingrp ; next ; next = next->nextingrp) {
+		if (!next->grouped && !memcmp(node->parcs, next->parcs,
 					      node->arccount * sizeof(arc))) {
 		    next->group = groupcount;
 		    next->grouped = TRUE;
 		}
 	    }
 	}
+	report("%d ... ", groupcount - prevgroupcount);
     }
 
     report("done\n");
@@ -392,10 +413,11 @@ static void writetreetofile(int groupcount)
 {
     int *xtable, *groups;
     treenode *node;
-    arc lastarc = { 0, TRUE, 0 };
-    dictfilehead header = { DICTFILE_SIG };
+    arc lastarc;
     long i, n, g;
 
+    lastarc = 0;
+    setarcend(lastarc, TRUE);
     xtable = xmalloc((groupcount + 1) * sizeof(int));
     groups = xmalloc((groupcount + 1) * sizeof(int));
     memset(groups, 0, (groupcount + 1) * sizeof(int));
@@ -410,7 +432,7 @@ static void writetreetofile(int groupcount)
 	}
 	node->group = groups[i];
     }
-    header.finalstates = g + 1;
+    dictfinalstates = g + 1;
     for (n = 1, node = wordtreeroot ; n <= nodecount ; ++n, ++node) {
 	if (!node->wordend)
 	    continue;
@@ -432,25 +454,27 @@ static void writetreetofile(int groupcount)
     groups[1] = 0;
     for (g = 1 ; g < groupcount ; ++g)
 	groups[g + 1] = groups[g] + wordtree[xtable[g]].arccount;
-    header.size = groups[groupcount] + wordtree[xtable[groupcount]].arccount;
-    header.size *= sizeof(arc);
+    dictarccount = groups[groupcount] + wordtree[xtable[groupcount]].arccount;
     for (node = wordtreeroot ; node->group ; ++node)
 	node->group = groups[node->group];
-    header.finalstates = groups[header.finalstates];
+   dictfinalstates = groups[dictfinalstates];
 
     report("%lu bytes for the completed dictionary file.\n",
-	   sizeof header + header.size);
+	   (unsigned long)(dictarccount * sizeof(arc) + fileheadsize()));
 
-    openfile(dictfilename, "wb");
-    for (i = 0 ; i < (int)(sizeof frequencies / sizeof *frequencies) ; ++i)
-	header.freq[i] = frequencies[i];
-    writeobj(header);
+    currfilename = dictfilename;
+    if (!(currfp = fopen(currfilename, "wb")))
+	errfile();
+    if (writefilehead(currfp))
+	errfile();
     for (g = 1 ; g <= groupcount ; ++g) {
 	node = wordtree + xtable[g];
 	for (i = 0 ; i < node->arccount ; ++i)
-	    node->arcs[i].node = wordtree[node->arcs[i].node].group;
-	node->arcs[node->arccount - 1].end = TRUE;
-	writeobjs(node->arcs, node->arccount);
+	    setarc(node->arcs[i], getarcletter(node->arcs[i]), FALSE,
+		   wordtree[getarcnext(node->arcs[i])].group);
+	setarcend(node->arcs[i - 1], TRUE);
+	if (writefilenodes(currfp, node->arcs, node->arccount))
+	    errfile();
     }
     closefile();
 }
@@ -466,7 +490,7 @@ int makedictfile(int filecount, char *files[])
     }
 
     nodecount = 1;
-    if (!readwordlists(filecount, files, grabnewtreearc('\0', nodecount)))
+    if (!readwordlists(filecount, files, grabnewtreearc(0, nodecount)))
 	return EXIT_FAILURE;
     computefrequencies();
     serializetree();

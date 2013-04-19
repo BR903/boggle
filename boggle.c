@@ -3,6 +3,7 @@
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<unistd.h>
+#include	<getopt.h>
 #include	"genutil.h"
 #include	"dbuild.h"
 #include	"batch.h"
@@ -35,9 +36,9 @@ static char const *yowzitch =
 	"   -D  Compile a new dictionary from the specified wordlist files;\n"
 	"       use -d to specify an alternate destination file.\n";
 
-/* What "program" to run (the solitaire game is the default mode).
+/* What part of the program to run.
  */
-int mode = MODE_SOLITAIRE;
+int mode = 0;
 
 /* argv[0].
  */
@@ -68,11 +69,22 @@ static int startup(int argc, char *argv[])
 	} else if (n == 'v') {
 	    fputs(vourzhon, stdout);
 	    return FALSE;
+	} else if (n == 'B') {
+	    if (mode)
+		expire("Mutually exclusive options specified.");
+	    mode = MODE_BATCH;
+	} else if (n == 'D') {
+	    if (mode)
+		expire("Mutually exclusive options specified.");
+	    mode = MODE_MAKEDICT;
 	}
 	opts[n] = optarg ? optarg : "";
     }
+    if (!mode)
+	mode = MODE_SOLITAIRE;
 
-    return wordsinit(opts)
+    return dictinit(opts)
+	&& wordsinit(opts)
 	&& cubeinit(opts)
 	&& timerinit(opts)
 	&& scoreinit(opts)

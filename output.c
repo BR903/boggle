@@ -1,11 +1,13 @@
 /* (C) 1999 Brian Raiter (under the terms of the GPL) */
 
+#define	_POSIX_SOURCE
 #include	<stdlib.h>
 #include	<ctype.h>
 #include	<stdarg.h>
 #include	<signal.h>
 #include	<curses.h>
 #include	"boggle.h"
+#include	"words.h"
 #include	"genutil.h"
 #include	"cube.h"
 #include	"output.h"
@@ -35,6 +37,10 @@ static int ystatus = 0, xstatus = 0;
  */
 static int highlightattr = A_STANDOUT;
 
+/* Whether or not to show the unfound words at the end of each game.
+ */
+static int ego = 0;
+
 /* Exit function for the module.
  */
 static void destroy(void)
@@ -62,15 +68,18 @@ static void onresize(int sig)
 	refresh();
     }
 }
-#endif	/* SIGWINCH */
+#endif /* SIGWINCH */
 
 /* The initialization function for this module. Calculates the various
- * screen coordinates and initializes curses.
+ * screen coordinates and initializes curses, and parses the cmdline
+ * option -o.
  */
 int outputinit(char *opts[])
 {
     struct sigaction act;
     int y, x;
+
+    ego = opts['o'] != NULL;
 
     xwords = 0;
     ywords = height * 2 + 1;
@@ -80,7 +89,8 @@ int outputinit(char *opts[])
     if (!(mode & MM_CURSES))
 	return TRUE;
 
-    initscr();
+    if (!initscr())
+	exit(EXIT_FAILURE);
     nonl();
     noecho();
     cbreak();
@@ -101,10 +111,9 @@ int outputinit(char *opts[])
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     sigaction(SIGWINCH, &act, NULL);
-#endif	/* SIGWINCH */
+#endif /* SIGWINCH */
 
     return TRUE;
-    (void)opts;
 }
 
 /* Moves the cursor to the top left of the area where words are
@@ -139,77 +148,72 @@ void movetostatus(int clear)
 void addline(char const *fmt, ...)
 {
     char buf[256];
-    int y, x, n;
+    int y, x, n, m;
     va_list args;
 
-    getmaxyx(stdscr, y, n);
+    getmaxyx(stdscr, n, m);
     getyx(stdscr, y, x);
-    va_start(args, fmt);
-    vsprintf(buf, (char*)fmt, args);
-    addnstr(buf, n - x);
-    move(y + 1, x);
-    va_end(args);
+    if (x < m) {
+	va_start(args, fmt);
+	vsprintf(buf, (char*)fmt, args);
+	va_end(args);
+	addnstr(buf, m - x);
+    }
+    if (y < n - 1)
+	++y;
+    move(y, x);
 }
 
-/* Lists all the words in the given array. The current cursor location
- * gives the upper left of the area to use, which is assumed to extend
- * to the edges of the screen. The supplied heading is displayed
- * first, then the words are displayed in a column; if the bottom of
- * the screen is reached, then another column is begun.  (The longest
- * word in the list sets the width of the columns.) If the right edge
- * of the screen is reached, an ellipsis is displayed in the bottom
- * right corner.
+/* Lists words in the given array. The current cursor location gives
+ * the upper left of the area to use, which is assumed to extend to
+ * the edges of the screen. The supplied heading is displayed first,
+ * then the words are displayed in a column; if the bottom of the
+ * screen is reached, then another column is begun.  (The longest word
+ * in the list sets the width of the columns.) If the right edge of
+ * the screen is reached, an ellipsis is displayed in the bottom right
+ * corner. The offset argument indicates how many columns to skip
+ * before displaying.
  */
-void listwords(char const *heading, char const **list)
+static int listwords(char const *heading, char const **list, int offset)
 {
     char const **word;
-    int y, x, ymin, ymax, xmax;
-    int lenmax, minextend;
-    int skipped = FALSE;
+    int y, x, ymin, ymax, xmax, ycol;
+    int lenmax, minextend, n;
+    int finished = TRUE;
 
     minextend = strlen(heading) + 2;
     addline(heading);
     getyx(stdscr, ymin, x);
     getmaxyx(stdscr, ymax, xmax);
+    ycol = ymax - ywords - 1;
 
-    y = ymin;
-    lenmax = 0;
-    for (word = list ; *word ; ++word) {
-	int n;
-	if (y == ymax) {
-	    if (x + lenmax + 1 >= xmax) {
-		skipped = TRUE;
+    for (word = list + offset * ycol ; *word ; x += lenmax) {
+	lenmax = 0;
+	for (y = 0 ; y < ycol ; ++y) {
+	    if (!word[y])
 		break;
-	    }
-	    x += lenmax + 1;
-	    y = ymin;
-	    lenmax = 0;
+	    n = strlen(word[y]);
+	    if (n > lenmax)
+		lenmax = n;
 	}
-	n = strlen(*word);
-	if (x + n < xmax)
-	    mvaddstr(y++, x, *word);
-	else
-	    skipped = TRUE;
-	if (n > lenmax)
-	    lenmax = n;
-    }
-    if (skipped) {
-	if (x + 3 >= xmax)
+	++lenmax;
+	if (x + lenmax >= xmax) {
+	    finished = FALSE;
 	    mvaddstr(ymax - 1, xmax - 3, "...");
-	else if (y == ymax) {
-	    mvaddstr(ymax - 1, x, "...");
-	    clrtoeol();
-	} else
-	    mvaddstr(y, x, "...");
+	    break;
+	}
+
+	for (y = ymin ; y < ymax && *word ; ++y, ++word)
+	    mvaddstr(y, x, *word);
     }
 
-    if (lenmax)
-	x += lenmax + 2;
     if (minextend > x)
 	x = minextend;
     if (x >= xmax)
 	x = xmax - 1;
     move(ymin - 1, x);
+
+    return finished;
 }
 
 /* Displays the letters in the grid. If highlighting is not NULL, then
@@ -217,7 +221,7 @@ void listwords(char const *heading, char const **list)
  * that is positive, the corresponding letter is displayed with
  * highlighting.
  */
-void drawgridletters(char const *highlighting)
+static void drawgridletters(char const *highlighting)
 {
     int	ypos, xpos, x, n;
     int ch, attr;
@@ -295,6 +299,17 @@ void drawgrid(void)
 
 }
 
+/* Sets up the screen for the start of a game.
+ */
+void displaygamestart(void)
+{
+    clear();
+    drawgrid();
+    movetowords(FALSE);
+    addch('\n');
+    refresh();
+}
+
 /* Displays brief online help for the special keys during input if
  * show is TRUE, or erases it if show is FALSE.
  */
@@ -319,4 +334,26 @@ void displayinputhelp(int show)
     }
     move(y, x);
     refresh();
+}
+
+/* Draw the board, the help, and the two wordlists at the end of a
+ * round. Returns zero if the end of screen was reached before the end
+ * of the wordlist.
+ */
+int doendgameoutput(int y, int x, char *highlit, int offset)
+{
+    int f = TRUE;
+
+    drawgridletters(highlit);
+    movetowords(TRUE);
+    listwords("Your words:", getfound(), 0);
+    if (!ego)
+	f = listwords("Other words that were present:", getfindable(), offset);
+    move(y, x);
+    if (!offset && f)
+	addline("^D: quit  &: new game  ?: find word");
+    else
+	addline("^D: quit  &: new game  ?: find word  =-: scroll");
+    clrtoeol();
+    return f;
 }

@@ -25,6 +25,7 @@ extern char const *thisfile;
  * cause the program to abort.
  */
 extern int wordsinit(char*[]);
+extern int dictinit(char*[]);
 extern int cubeinit(char*[]);
 extern int scoreinit(char*[]);
 extern int timerinit(char*[]);

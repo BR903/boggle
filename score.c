@@ -15,18 +15,17 @@
 #define POINTS(n)	(n), ((n) == 1 ? "point" : "points")
 #define GAMES(n)	(n), ((n) == 1 ? "game" : "games")
 
-
 /* A structure that holds all the different statistics kept on the
  * game(s) being played. The paired elements are the statistic for the
  * most recent game, and the running total for all the games played
  * in this session, respectively.
  */
 typedef	struct scores {
+    int		gamecount;		/* number of games played	*/
     int		ncount1, ncount;	/* number of found words	*/
     int		nscore1, nscore;	/* points for the found words	*/
     int		dcount1, dcount;	/* number of words present	*/
     int		dscore1, dscore;	/* points for the words present	*/
-    int		gamecount;		/* number of games played	*/
 } scores;
 
 /* How many points the various word lengths are worth.
@@ -34,16 +33,15 @@ typedef	struct scores {
 static const int wordscores[] = { 0, 0, 1, 1, 1, 2, 3, 5, 11 };
 static const int maxwordscores = sizeof wordscores / sizeof *wordscores;
 
+/* The player's statistics, initially all zero.
+ */
+static scores scoring = { 0 };
+
 /* Whether or not to show the unfound words at the end of each game.
  */
 static int ego = 0;
 
-/* The player's statistics, initially all zero.
- */
-static scores scoring = { };
-
-/* The initialization function for this module. Parses the cmdline
- * option -o.
+/* The initialization function for this module.
  */
 int scoreinit(char *opts[])
 {
@@ -55,7 +53,7 @@ int scoreinit(char *opts[])
  * found, unless -o was used), and computer the player's current
  * statistics.
  */
-void reportwords(void)
+void scoregame(void)
 {
     char const **found;
     char const **findable;
@@ -85,11 +83,6 @@ void reportwords(void)
     scoring.nscore += scoring.nscore1;
     scoring.dscore += scoring.dscore1;
     ++scoring.gamecount;
-
-    movetowords(TRUE);
-    listwords("Your words:", found);
-    if (!ego)
-	listwords("Other words that were present:", findable);
 }
 
 /* Display the current statistics.
@@ -99,13 +92,21 @@ void reportscore(void)
     movetostatus(TRUE);
     addline("%d %s, scoring %d %s",
 	    WORDS(scoring.ncount1), POINTS(scoring.nscore1));
-    if (!ego) {
-	addline("(of a possible %d scoring %d %s)",
-		scoring.dcount1, POINTS(scoring.dscore1));
-	if (scoring.dcount && scoring.dscore)
-	    addline("%.2f%% over %d %s (%.2f%% by score)",
-		    ((100.0 * scoring.ncount) / scoring.dcount),
-		    GAMES(scoring.gamecount),
-		    ((100.0 * scoring.nscore) / scoring.dscore));
+    if (!ego && scoring.dcount1 && scoring.dscore1)
+	addline("out of %d %s (%.2f%%) for %d %s (%.2f%%)",
+		WORDS(scoring.dcount1),
+		(100.0 * scoring.ncount1) / scoring.dcount1,
+		POINTS(scoring.dscore1),
+		(100.0 * scoring.nscore1) / scoring.dscore1);
+    if (scoring.gamecount > 1) {
+	addline("%d %s for %d %s over %d games",
+		WORDS(scoring.ncount), POINTS(scoring.nscore),
+		scoring.gamecount);
+	if (!ego && scoring.dcount && scoring.dscore)
+	    addline("out of %d %s (%.2f%%) for %d %s (%.2f%%)",
+		    WORDS(scoring.dcount),
+		    (100.0 * scoring.ncount) / scoring.dcount,
+		    POINTS(scoring.dscore),
+		    (100.0 * scoring.nscore) / scoring.dscore);
     }
 }

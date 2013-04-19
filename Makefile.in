@@ -1,27 +1,27 @@
 #
 # Useful ./configure options with respect to this Makefile:
 # --prefix
-# --exec-prefix
-# --bindir
 # --datadir
 # --mandir
 
-VER = 1.0
+VER = 1.1
 
 prefix = @prefix@
-exec_prefix = @exec_prefix@
 
 CC      = @CC@
 CFLAGS  = @GCCFLAGS@ @CFLAGS@ '-DVERSION="$(VER)"'	\
 	  '-DDICTFILEPATH="@datadir@/games/boggle.dict"'
 
-OBJLIST	= genutil.o wordlist.o words.o cube.o score.o timer.o input.o	\
-	  output.o play.o batch.o dbuild.o boggle.o
+OBJLIST	= genutil.o wordlist.o dict.o words.o cube.o score.o timer.o	\
+	  input.o output.o play.o batch.o dbuild.o boggle.o
 
 
 boggle: $(OBJLIST)
 	$(CC) @LDFLAGS@ -o boggle $(OBJLIST) @LIBS@
 
+genutil.o  : genutil.c genutil.h
+wordlist.o : wordlist.c wordlist.h genutil.h
+dict.o     : dict.c dict.h boggle.h genutil.h
 words.o    : words.c words.h boggle.h genutil.h cube.h wordlist.h dict.h
 cube.o     : cube.c cube.h boggle.h genutil.h words.h
 score.o    : score.c score.h boggle.h genutil.h words.h output.h
@@ -32,23 +32,26 @@ play.o     : play.c play.h boggle.h genutil.h words.h cube.h timer.h	\
 	     score.h input.h output.h
 batch.o    : batch.c batch.h genutil.h cube.h words.h
 dbuild.o   : dbuild.c dbuild.h genutil.h dict.h
-genutil.o  : genutil.c genutil.h
-wordlist.o : wordlist.c wordlist.h genutil.h
 boggle.o   : boggle.c boggle.h genutil.h dbuild.h batch.h play.h
 
 install: boggle
 	@INSTALL@ @srcdir@/boggle $(prefix)/games/boggle
 	@INSTALL@ @srcdir@/boggle.6 @mandir@/man6/boggle.6
 
+dcat: dcat.c
+	$(CC) $(CFLAGS) -o dcat dcat.c
+
 clean:
-	rm -f $(OBJLIST) boggle config.log
+	rm -f $(OBJLIST) boggle dcat config.log
 
 dist:
 	mkdir boggle-$(VER)
-	mv COPYING README Makefile.in batch.[ch] boggle.[ch6] configure	\
-	   configure.in cube.[ch] dict.h dict.doc dbuild.[ch]		\
-	   genutil.[ch] input.[ch] install-sh output.[ch] play.[ch]	\
-	   score.[ch] timer.[ch] wordlist.[ch] words.[ch] boggle-$(VER)/.
+	chmod g-w boggle-$(VER)
+	mv COPYING README Changelog Makefile.in batch.[ch] boggle.[ch6]	\
+           configure configure.in cube.[ch] dict.[ch] dict.doc		\
+           dbuild.[ch] genutil.[ch] input.[ch] install-sh output.[ch]	\
+           play.[ch] score.[ch] timer.[ch] wordlist.[ch] words.[ch]	\
+           boggle-$(VER)/.
 	tar -czvf boggle-$(VER).tar.gz boggle-$(VER)
 	mv boggle-$(VER)/* .
 	rmdir boggle-$(VER)

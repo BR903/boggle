@@ -19,25 +19,25 @@ extern void movetostatus(int clear);
  */
 extern void addline(char const *fmt, ...);
 
-/* Lists all the words in the given array at the current cursor
- * location, using multiple columns if necessary, with the given
- * heading at the top.
- */
-extern void listwords(char const *heading, char const **words);
-
 /* Displays the grid of letters for the current game.
  */
 extern void drawgrid(void);
 
-/* Displays just the letters in the grid. If highlighting is not NULL,
- * then for each value in highlighting that is nonzero, the
- * corresponding letter in the grid is highlighted.
+/* Sets up the screen for the start of a game.
  */
-extern void drawgridletters(char const *highlighting);
+extern void displaygamestart(void);
 
 /* Displays brief online help for the special keys during input if
  * show is TRUE, or erases it if show is FALSE.
  */
 extern void displayinputhelp(int show);
+
+/* Draw the board, the help, and the two wordlists at the end of a
+ * round. highlit, if not NULL, indicates a set of letters in the
+ * board to highlight. Offset indicates the number of columns to skip
+ * over in the list of findable words. The return value is zero if the
+ * end of screen was reached before the end of the findable wordlist.
+ */
+extern int doendgameoutput(int y, int x, char *highlit, int offset);
 
 #endif

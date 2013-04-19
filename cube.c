@@ -4,7 +4,7 @@
 #include	<string.h>
 #include	"boggle.h"
 #include	"genutil.h"
-#include	"words.h"
+#include	"dict.h"
 #include	"cube.h"
 
 /* Obtain a random number between 0 and N - 1.
@@ -29,20 +29,20 @@ short (*neighbors)[9] = NULL;
 /* The dice to use for grids of size 4x4 and 5x5.
  */
 static char const *sixteendice[16] = {
-	"ednosw", "aaciot", "acelrs", "ehinps",
-	"eefhiy", "elpstu", "acdemp", "gilruw",
-	"egkluy", "ahmors", "abilty", "adenvz",
-	"bfiorx", "dknotu", "abjmoq", "egintv"
+	"aaciot", "abilty", "abjmoq", "acdemp",
+	"acelrs", "adenvz", "ahmors", "bfiorx",
+	"dknotu", "ednosw", "eefhiy", "egintv",
+	"egkluy", "ehinps", "elpstu", "gilruw"
 };
 static char const *twentyfivedice[25] = {
-	"aegmnn", "aafirs", "ensssu", "aaeeee", "aeegum",
-	"ceipst", "ddhnot", "adennn", "oontuw", "ccenst",
-	"dhlnor", "ooottu", "emottt", "afirsy", "dhhlor",
-	"eiiitt", "gorrvw", "aeeeem", "dhlnor", "ceilpt",
-	"aaafrs", "fiprsy", "ceiilt", "iprrry", "bqxkjz"
+	"aaafrs", "aaeeee", "aafirs", "adennn", "aeeeem",
+	"aegmnn", "aeegum", "afirsy", "bqxkjz", "ccenst",
+	"ceiilt", "ceilpt", "ceipst", "ddhnot", "dhhlor",
+	"dhlnor", "dhlnor", "eiiitt", "emottt", "ensssu",
+	"fiprsy", "gorrvw", "iprrry", "oontuw", "ooottu"
 };
 
-/* A gridsized scratch buffer.
+/* A grid-sized scratch buffer.
  */
 static char *gridtemp;
 
@@ -74,7 +74,7 @@ int cubeinit(char *opts[])
 {
     int	i, n, x, y;
 
-    if (opts['D'])
+    if (mode == MODE_MAKEDICT)
 	return TRUE;
     atexit(destroy);
 
@@ -125,9 +125,6 @@ int cubeinit(char *opts[])
 	}
     }
 
-    if (opts['B'])
-	mode = MODE_BATCH;
-
     return TRUE;
 }
 
@@ -135,10 +132,10 @@ static int letterindex(char letter)
 {
     int i;
 
-    for (i = 0 ; i < SIZE_ALPHABET ; ++i)
-	if (ALPHABET[i] == letter)
+    for (i = 0 ; i < sizealphabet ; ++i)
+	if (alphabet[i] == letter)
 	    return i;
-    return 0;
+    return -1;
 }
 
 /* Fill the grid with randomly selected letters. If the grid's
@@ -164,7 +161,7 @@ void shakecube(void)
 	    do
 		m -= letterfreq[++n];
 	    while (m > 0);
-	    grid[i] = ALPHABET[n];
+	    grid[i] = alphabet[n];
 	}
     }
 }
@@ -227,16 +224,16 @@ char *findwordingrid(char const *wd)
 	return NULL;
     for (n = 0 ; word[n] ; ++n)
 	word[n] = letterindex(word[n]) + 1;
-    if (!word[1]) {
+    if (n == 1) {
 	pos = strchr(gridtemp, word[0]);
 	if (pos) {
-	    *pos = SIZE_ALPHABET + 1;
+	    *pos = sizealphabet + 1;
 	    found = TRUE;
 	}
     } else {
 	n = 0;
 	while ((pos = memchr(gridtemp + n, word[0], gridsize - n)) != NULL) {
-	    *pos = SIZE_ALPHABET + 1;
+	    *pos = sizealphabet + 1;
 	    n = pos - gridtemp;
 	    if (auxfindword(n, word + 1)) {
 		found = TRUE;
@@ -251,9 +248,9 @@ char *findwordingrid(char const *wd)
     if (!found)
 	return NULL;
     for (n = 0 ; n < gridsize ; ++n)
-	if (gridtemp[n] <= SIZE_ALPHABET)
+	if (gridtemp[n] <= sizealphabet)
 	    gridtemp[n] = 0;
 	else
-	    gridtemp[n] -= SIZE_ALPHABET;
+	    gridtemp[n] -= sizealphabet;
     return gridtemp;
 }
