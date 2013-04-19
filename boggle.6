@@ -4,12 +4,31 @@
 boggle \- a vocabulary game
 .SH SYNOPSIS
 .B boggle
-[\-45hlpsv] [\-t secs] [\-w size] [\-d dict] [\-b size]
+[\-45hlpsv] [\-t
+.IR secs ]
+[\-w
+.IR size ]
+[\-d
+.IR dict ]
+[\-b
+.IR size ]
 .br
-\ \ \ \ \ \ \ [\-B letters] [\-D wordlists]
+.B boggle
+[\-45] [\-w
+.IR size ]
+[\-b
+.IR size ]
+\-B
+.I letters
+.br
+.B boggle
+[\-d
+.IR dict ]
+\-D
+.I wordlists
 .SH DESCRIPTION
 .B Boggle
-is a solitaire game, based on Parker Brothers game, in which the
+is a solitaire game, based on the Parker Brothers game, in which the
 object is to find as many words as possible within the board in a
 given time. The board consists of a rectangular arrangement of
 letters. A word is found by tracing a connected chain of letters. Each
@@ -63,11 +82,11 @@ must be greater than one.
 .TP
 .BI \-4
 Equivalent to 
-.IR "-b 4 -w 3" .
+.BR "-b 4 -w 3" .
 .TP
 .BI \-5
 Equivalent to
-.IR "-b 5 -w 4" .
+.BR "-b 5 -w 4" .
 .TP
 .BI \-t " n"
 Specifies the amount of time for each game as
@@ -94,9 +113,9 @@ Specifies
 .I path
 as the pathname of the dictionary file.
 .P
-(The following options enable different features of the program. They
+The following options enable different features of the program. They
 both accept multiple arguments, and so must be the last options on the
-command line.)
+command line.
 .TP
 .BI \-B
 "Batch mode": Use of this option causes the program to run as a
@@ -105,11 +124,11 @@ fill the grid (left-to-right, top-to-bottom). The input should consist
 of a wordlist (i.e., one word per line).  The words that can be found
 in the specified grid are echoed to the output. This option can be
 used in conjunction with
-.IR -b ,
-.IR -w ,
-.IR -4
+.BR -b ,
+.BR -w ,
+.BR -4
 and
-.IR -5 ;
+.BR -5 ;
 all other options are ignored. The dictionary file is not consulted
 when in this mode.
 .TP
@@ -119,53 +138,54 @@ file. The arguments should be the pathname(s) of one or more
 wordlists, and the union of their contents is compiled into the
 dictionary file. If no wordlists are specified, standard input is used
 by default. This option can be used in conjunction with
-.IR -d ;
+.BR -d ;
 all other options are ignored.
 .SH INPUT KEYS
 When the program is waiting for a word to be input, the following keys
 have special meaning.
 .TP
-.I SPC
-completes the input (same as RET).
+.B SPC
+completes the input (same as
+.BR RET ).
 .TP
-.I ^U ^W
+.B ^U ^W
 erases what has been typed so far.
 .TP
-.I ^T
+.B ^T
 transposes the last two letters typed.
 .TP
-.I ^L ^R
+.B ^L ^R
 redraws the entire screen.
 .TP
-.I ^D
+.B ^D
 cancels input and ends the current game.
 .TP
-.I ?
+.B ?
 displays the brief online help.
 .P
 After a game has ended, the following key commands are available.
 .TP
-.I &
+.B &
 starts a new game.
 .TP
-.I ^D
+.B ^D
 exits the program.
 .TP
-.I -
+.B -
 scrolls the wordlist to the right, if there are more words than can
 fit on the screen.
 .TP
-.I +
+.B + =
 scrolls the wordlist to the left.
 .TP
-.I ?
+.B ?
 prompts for a word from the wordlist, and then shows where the word
 can be found.
 .SH DICTIONARY
 The game requires an external dictionary file (except when used in
 batch mode). Any collection of wordlists can be used in conjunction
 with the program (using the
-.I -D
+.B -D
 option) to build a new dictionary. Words in the wordlists that contain
 anything other than lowercase letters are automatically ignored, as
 capitalized letters are assumed to indicate proper nouns. (Note that

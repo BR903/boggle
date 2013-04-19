@@ -1,7 +1,11 @@
-/* (C) 1999 Brian Raiter (under the terms of the GPL) */
-
+/* boggle.c: Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>
+ * License GPLv2+: GNU GPL version 2 or later.
+ * This is free software; you are free to change and redistribute it.
+ * There is NO WARRANTY, to the extent permitted by law.
+ */
 #include	<stdio.h>
 #include	<stdlib.h>
+#include	<string.h>
 #include	<unistd.h>
 #include	<getopt.h>
 #include	"genutil.h"
@@ -12,9 +16,12 @@
 
 /* The version info.
  */
-static char const *vourzhon = "Boggle version " VERSION ", (c) 1999 "
-			      "by Brian Raiter\nunder the terms "
-			      "of the GNU General Public License.\n";
+static char const *vourzhon =
+	"boggle: version " VERSION "\n"
+	"Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>\n"
+	"License GPLv2+: GNU GPL version 2 or later.\n"
+	"This is free software; you are free to change and redistribute it.\n"
+	"There is NO WARRANTY, to the extent permitted by law.\n";
 
 /* The help info.
  */
@@ -55,6 +62,16 @@ static int startup(int argc, char *argv[])
     int n;
 
     thisfile = argv[0];
+
+    if (argc == 2) {
+	if (!strcmp(argv[1], "--help")) {
+	    fputs(yowzitch, stdout);
+	    return FALSE;
+	} else if (!strcmp(argv[1], "--version")) {
+	    fputs(vourzhon, stdout);
+	    return FALSE;
+	}
+    }
 
     for (n = 0 ; n < (int)(sizeof opts / sizeof *opts) ; ++n)
 	opts[n] = NULL;

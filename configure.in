@@ -47,7 +47,7 @@ if test $ac_cv_type_size_t = no; then
 fi
 
 AC_FUNC_MEMCMP
-if test $ac_cv_func_memcmp_clean = no; then
+if test $ac_cv_func_memcmp_working = no; then
   AC_MSG_ERROR([Boggle requires an ANSI compiler that has a working memcmp().])
 fi
 
@@ -78,7 +78,7 @@ fi
 dnl Adds appropriate compiler flags for gcc.
 dnl
 if test "$GCC" = "yes"; then
-  GCCFLAGS="-Wall -W"
+  GCCFLAGS="-Wall -Wextra"
 else
   GCCFLAGS=
 fi

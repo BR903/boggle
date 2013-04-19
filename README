@@ -1,37 +1,14 @@
-Boggle requires a decent version of ncurses and an ANSI C compiler;
-beyond that, it should compile on any modern Unix-like system without
-trouble.
+Boggle is a solitaire game, based on the Parker Brothers game, in
+which the object is to find as many words as possible within the board
+in a given time.
 
-To install, use:
-
-$ ./configure
-$ make
-$ make install
-
-Useful options to the configure program are --prefix, --exec-prefix,
---bindir, --datadir, and --mandir.
-
-Boggle requires an external dictionary file (unless you only need to
-use the batch mode) before it can be used. To build one, use the -D
-option and any collection of wordlists. For example:
-
-$ ./boggle -D /usr/bin/words /etc/dictionary
-
-The default location for the dictionary file is set at compile-time,
-via the DICTFILEPATH macro, to /usr/local/share/games/boggle.dict.
-/usr/local/share may be changed by using the --datadir option. If you
-want to change it further, you should edit the Makefile (after running
-./configure) so that DICTFILEPATH contains the desired pathname.
-
-Note that system wordlists are usually aimed more for use with
-spelling checkers, and as such will omit plurals and other common
-variations. If you're looking for a better wordlist for building a
-dictionary than what's available locally, try YAWL (Yet Another Word
-List) at <http://metalab.unc.edu/pub/linux/libs/yawl-0.1.tar.gz>, or
-the Moby project: <http://www.dcs.shef.ac.uk/research/ilash/Moby/>.
+The file INSTALL contains information on building and installing the
+program. The man page provides directions on using the program.
 
 This program is free software; it is distributed under the terms of
 the GNU General Public License version 2 (or, at your option, any
 later version). See COPYING for specifics. Share and enjoy.
 
-Brian Raiter <breadbox@muppetlabs.com>
+Brian Raiter
+<breadbox@muppetlabs.com>
+URL: <http://www.muppetlabs.com/~breadbox/software/boggle.html>

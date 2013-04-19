@@ -4,20 +4,24 @@
 # --datadir
 # --mandir
 
-VER = 1.2
-
 prefix = @prefix@
+datarootdir = @datarootdir@
+datadir = @datadir@
+mandir = @mandir@
 
-CC      = @CC@
-CFLAGS  = @GCCFLAGS@ @CFLAGS@ '-DVERSION="$(VER)"'	\
-	  '-DDICTFILEPATH="@datadir@/games/boggle.dict"'
+VER = 1.2
+DICTFILEDIR = ${datadir}/games/boggle
 
-OBJLIST	= genutil.o wordlist.o dict.o words.o cube.o score.o timer.o	\
+CC = @CC@
+CFLAGS  = @GCCFLAGS@ @CFLAGS@ '-DVERSION="$(VER)"' \
+	  '-DDICTFILEPATH="${DICTFILEDIR}/boggle.dict"'
+LOADLIBES = @LIBS@
+
+OBJLIST	= genutil.o wordlist.o dict.o words.o cube.o score.o timer.o \
 	  input.o output.o play.o batch.o dbuild.o boggle.o
 
 
 boggle: $(OBJLIST)
-	$(CC) @LDFLAGS@ -o boggle $(OBJLIST) @LIBS@
 
 genutil.o  : genutil.c genutil.h
 wordlist.o : wordlist.c wordlist.h genutil.h
@@ -28,15 +32,16 @@ score.o    : score.c score.h boggle.h genutil.h words.h output.h
 timer.o    : timer.c timer.h boggle.h genutil.h output.h
 input.o    : input.c input.h boggle.h genutil.h output.h timer.h cube.h
 output.o   : output.c output.h boggle.h genutil.h cube.h
-play.o     : play.c play.h boggle.h genutil.h words.h cube.h timer.h	\
+play.o     : play.c play.h boggle.h genutil.h words.h cube.h timer.h \
 	     score.h input.h output.h
 batch.o    : batch.c batch.h genutil.h cube.h words.h
 dbuild.o   : dbuild.c dbuild.h genutil.h dict.h
 boggle.o   : boggle.c boggle.h genutil.h dbuild.h batch.h play.h
 
 install: boggle
-	@INSTALL@ @srcdir@/boggle $(prefix)/games/boggle
-	@INSTALL@ @srcdir@/boggle.6 @mandir@/man6/boggle.6
+	@INSTALL@ @srcdir@/boggle ${prefix}/games/boggle
+	@INSTALL@ @srcdir@/boggle.6 ${mandir}/man6/boggle.6
+	@INSTALL@ -d ${DICTFILEDIR}
 
 dcat: dcat.c
 	$(CC) $(CFLAGS) -o dcat dcat.c
@@ -45,13 +50,9 @@ clean:
 	rm -f $(OBJLIST) boggle dcat config.log
 
 dist:
+	rm -f boggle-$(VER).tar.gz
 	mkdir boggle-$(VER)
-	chmod g-w boggle-$(VER)
-	mv COPYING README Changelog Makefile.in batch.[ch] boggle.[ch6]	\
-           configure configure.in cube.[ch] dict.[ch] dict-doc.txt	\
-           dbuild.[ch] genutil.[ch] input.[ch] install-sh output.[ch]	\
-           play.[ch] score.[ch] timer.[ch] wordlist.[ch] words.[ch]	\
-           boggle-$(VER)/.
-	tar -czvf boggle-$(VER).tar.gz boggle-$(VER)
+	mv $(shell cat MANIFEST) boggle-$(VER)/.
+	tar -czvf boggle-$(VER).tar.gz boggle-$(VER)/*
 	mv boggle-$(VER)/* .
 	rmdir boggle-$(VER)

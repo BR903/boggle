@@ -1,5 +1,8 @@
-/* (C) 1999 Brian Raiter (under the terms of the GPL) */
-
+/* dbuild.c: Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>
+ * License GPLv2+: GNU GPL version 2 or later.
+ * This is free software; you are free to change and redistribute it.
+ * There is NO WARRANTY, to the extent permitted by law.
+ */
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -81,8 +84,8 @@ static FILE *currfp = NULL;
 
 /* Macros for handling file errors.
  */
-#define	errfile()	(perror(currfilename), exit(EXIT_FAILURE), NULL)
-#define closefile()	(ferror(currfp) || fclose(currfp) ? (void*)errfile() :\
+#define	errfile()   (perror(currfilename), exit(EXIT_FAILURE), NULL)
+#define closefile() (ferror(currfp) || fclose(currfp) ? (char*)errfile() : \
 					(currfp = NULL, currfilename = NULL))
 
 /* Outputs relatively useless data on stderr.
@@ -459,8 +462,7 @@ static void writetreetofile(int groupcount)
 	node->group = groups[node->group];
    dictfinalstates = groups[dictfinalstates];
 
-    report("%lu bytes for the completed dictionary file.\n",
-	   (unsigned long)(dictarccount * sizeof(arc) + fileheadsize()));
+   report("%ld bytes for the completed dictionary file.\n", dictfilesize());
 
     currfilename = dictfilename;
     if (!(currfp = fopen(currfilename, "wb")))

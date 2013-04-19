@@ -1,3 +1,9 @@
+Version 1.2, ???:
+* Numerous incremental improvements and small bug fixes over the years,
+  none of which I documented at the time. This version has been sitting on
+  my hard drive for years, though, and it does contain bug fixes, so I
+  feel that I ought to release it.
+
 Version 1.1, November 1999:
 * Minor bug fixes.
 * UI improvements.
@@ -6,12 +12,12 @@ Version 1.1, November 1999:
   platform-independent. It is now possible to share dictionary files
   across platforms.
 
-Version 1.0 (silent update), April 1999:
+Version 1.0, April 1999:
 * Bug fixes.
 * Minor UI improvements.
 * Minor change to dictionary file format.
 * Added dict.doc file to document the dictionary file format, and the
   code that creates and uses it.
 
-Version 1.0, January 1999:
+Version 0.9, January 1999:
 * Initial release.

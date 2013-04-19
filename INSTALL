@@ -1,0 +1,35 @@
+Boggle requires a decent version of ncurses and an ANSI C compiler;
+beyond that, it should compile on any modern Unix-like system without
+trouble.
+
+To install, use:
+
+$ ./configure
+$ make
+$ make install
+
+Useful options to the configure program are: --prefix, --exec-prefix,
+--bindir, --datadir, and --mandir.
+
+Boggle requires an external dictionary file (unless you only need to
+use the batch mode) before it can be used. To build one, use the -D
+option and any collection of wordlists. For example:
+
+$ ./boggle -D /etc/dictionary/words ./mywords.txt
+
+The program will automatically ignore words that contain any capital
+letters, or non-alphabetic characters such as apostrophes.
+
+The default location for the dictionary file is set at compile-time to
+/usr/local/share/games/boggle/boggle.dict via the DICTFILEDIR
+variable. /usr/local/share may be changed by using the --datadir
+option to ./configure. If you want to change it further, you should
+edit the Makefile (after running ./configure) so that DICTFILEDIR
+contains the desired directory.
+
+Note that many system wordlists are aimed more for use with spelling
+checkers, and as such will omit plurals and other common variations.
+If you're looking for a better wordlist for building a dictionary than
+what's available locally, try a web search for open source word lists.
+Or, you can download a pre-built dictionary from this program's web
+page at <http://www.muppetlabs.com/~breadbox/software/boggle.html>.

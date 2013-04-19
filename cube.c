@@ -1,5 +1,8 @@
-/* (C) 1999 Brian Raiter (under the terms of the GPL) */
-
+/* cube.c: Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>
+ * License GPLv2+: GNU GPL version 2 or later.
+ * This is free software; you are free to change and redistribute it.
+ * There is NO WARRANTY, to the extent permitted by law.
+ */
 #include	<stdlib.h>
 #include	<string.h>
 #include	"boggle.h"
@@ -45,6 +48,9 @@ static char const *twentyfivedice[25] = {
     "fiprsy", "gorrvw", "hiprry", "nootuw", "ooottu"
 };
 
+/* Some other dice sets, not used by the program but kept in the
+ * source as historical record.
+ */
 #if 0
 
 /* These are the dice of the older edition of the Boggle game.
@@ -171,6 +177,8 @@ int cubeinit(char *opts[])
     return TRUE;
 }
 
+/* Return the position of letter in the alphabet.
+ */
 static int letterindex(char letter)
 {
     int i;

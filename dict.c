@@ -1,5 +1,8 @@
-/* (C) 1999 Brian Raiter (under the terms of the GPL) */
-
+/* dict.c: Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>
+ * License GPLv2+: GNU GPL version 2 or later.
+ * This is free software; you are free to change and redistribute it.
+ * There is NO WARRANTY, to the extent permitted by law.
+ */
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -235,7 +238,9 @@ int writefilenodes(FILE *fp, arc const *arcs, long count)
     return 0;
 }
 
-int fileheadsize(void)
+/* Compute the size of the dictionary file.
+ */
+long dictfilesize(void)
 {
     long temp;
 
@@ -243,5 +248,6 @@ int fileheadsize(void)
     for (temp = 0 ; temp < dictarccount ; temp = (temp << 8) | 0xFF)
 	++sizenodeindex;
 
-    return 2 + 1 + 1 + sizealphabet * 3 + sizenodeindex * 2;
+    return (2 + 1 + 1 + sizealphabet * 3 + sizenodeindex * 2)
+	   + dictarccount * (1 + sizenodeindex);
 }

@@ -1,5 +1,8 @@
-/* (C) 1999 Brian Raiter (under the terms of the GPL) */
-
+/* wordlist.h: Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>
+ * License GPLv2+: GNU GPL version 2 or later.
+ * This is free software; you are free to change and redistribute it.
+ * There is NO WARRANTY, to the extent permitted by law.
+ */
 #ifndef	_wordlist_h_
 #define	_wordlist_h_
 
@@ -20,10 +23,6 @@ typedef	struct wordlist {
     char       *poolptr;	/* the beginning of the latest pool	*/
     char       *poolstop;	/* the end of the latest pool		*/
 } wordlist;
-
-/* An initializer for an empty wordlist.
- */
-#define EMPTYWORDLIST	{ NULL, 0, 0, NULL, NULL, NULL }
 
 /* Initializes a wordlist structure and allocates the first pool.
  */

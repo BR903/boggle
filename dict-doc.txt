@@ -10,25 +10,29 @@ labelled with a letter. Following a trail through the graph from the
 root node to a node marked as a final node spells out a word.
 
 When loaded into memory, this graph is stored as an array of 32-bit
-values, each one representing an arc:
+values, each one representing an arc in the graph. Note that only the
+arcs are represented explicitly in memory; the nodes of the graph are
+implicit. Each arc contains three fields, arranged as follows:
 
   3 3             2 2
  |1|0             3|2                                           0|
  |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|
  end    letter                          next
 
-Arcs belonging to a single node are stored sequentially. The high bit
-("end") is zero for all but the last arc of a given node. The bits
-marked "letter" contain the ASCII value of the letter labelling the
-arc. "next" contains the index of the node the arc points to (i.e.,
-the index of the target node's first arc). A node's arcs are sorted by
-their letter values.
+The high bit (labelled "end") is zero for all but the last arc of a
+given node. The bits marked "letter" contain the ASCII value of the
+letter labelling the arc. "next" contains the index of the node the
+arc points to (i.e., the index of the target node's first arc). A
+node's arcs are sorted by their letter values.
 
-The root node is always stored at the beginning of the array. All
-nodes marked as final nodes (i.e., corresponding to the end of a word)
-are stored at the end of the array, after the non-final nodes. Thus,
-to complete the dictionary, it is only necessary to know the index of
-the first final node in the array.
+All the arcs belonging to a single node are stored sequentially. The
+index of a node is thus the index of the first arc in this sequence.
+
+The arcs of the root node appear at the beginning of the array, so the
+root node always has index zero. All final nodes (i.e., corresponding
+to the end of a word) are stored at the end of the array, after the
+non-final nodes. Thus, to complete the dictionary, it is only
+necessary to know the index of the first final node in the array.
 
 The last arc in the array is invariably a "dead end", a node with no
 arcs leading out from it. All words in the dictionary which are not

@@ -1,5 +1,8 @@
-/* (C) 1999 Brian Raiter (under the terms of the GPL) */
-
+/* dict.h: Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>
+ * License GPLv2+: GNU GPL version 2 or later.
+ * This is free software; you are free to change and redistribute it.
+ * There is NO WARRANTY, to the extent permitted by law.
+ */
 #ifndef	_dict_h_
 #define	_dict_h_
 
@@ -68,8 +71,8 @@ extern int writefilehead(FILE *fp);
  */
 extern int writefilenodes(FILE *fp, arc const *nodes, long count);
 
-/* Return the size of the dictionary file header.
+/* Return the size of the dictionary file.
  */
-extern int fileheadsize(void);
+extern long dictfilesize(void);
 
 #endif

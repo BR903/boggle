@@ -1,5 +1,8 @@
-/* (C) 1999 Brian Raiter (under the terms of the GPL) */
-
+/* words.c: Copyright (C) 1999 by Brian Raiter <breadbox@muppetlabs.com>
+ * License GPLv2+: GNU GPL version 2 or later.
+ * This is free software; you are free to change and redistribute it.
+ * There is NO WARRANTY, to the extent permitted by law.
+ */
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -55,7 +58,7 @@ int wordsinit(char *opts[])
     return TRUE;
 }
 
-/* Returns the finable list of words.
+/* Returns the findable list of words.
  */
 char const **getfindable(void)
 {
@@ -177,6 +180,7 @@ int findall(void)
     for (n = 0 ; n < gridsize ; ++n)
 	auxfindall(gd, n, 0, word, 0);
     free(word);
+    free(gd);
 
     sortwordlist(&findable);
     n = 1;
