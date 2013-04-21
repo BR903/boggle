@@ -1,0 +1,8 @@
+*.o
+*.tar.gz
+boggle
+boggle.dict*
+autom4te.cache
+config.log
+config.status
+Makefile
