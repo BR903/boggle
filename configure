@@ -3718,7 +3718,7 @@ if test $ac_cv_func_sigaction = no; then
 fi
 
 if test "$GCC" = "yes"; then
-  GCCFLAGS="-Wall -W"
+  GCCFLAGS="-Wall -Wextra"
 else
   GCCFLAGS=
 fi
