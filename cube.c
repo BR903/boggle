@@ -183,6 +183,9 @@ static int letterindex(char letter)
 {
     int i;
 
+    if (!sizealphabet)
+	return letter;
+
     for (i = 0 ; i < sizealphabet ; ++i)
 	if (alphabet[i] == letter)
 	    return i;
