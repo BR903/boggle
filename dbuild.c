@@ -84,8 +84,8 @@ static FILE *currfp = NULL;
 
 /* Macros for handling file errors.
  */
-#define	errfile()   (perror(currfilename), exit(EXIT_FAILURE), NULL)
-#define closefile() (ferror(currfp) || fclose(currfp) ? (char*)errfile() : \
+#define	errfile()   ((void)(perror(currfilename), exit(EXIT_FAILURE), NULL))
+#define closefile() (ferror(currfp) || fclose(currfp) ? errfile() : \
 					(currfp = NULL, currfilename = NULL))
 
 /* Outputs relatively useless data on stderr.
